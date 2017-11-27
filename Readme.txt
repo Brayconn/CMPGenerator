@@ -1,0 +1,2 @@
+# CMPGenerator
+Have you ever wanted an easy way to generate CMP/SMP commands? Well look no further than CMPGenerator! The world's only modern, fully-fledged, and gluten free, CMP & SMP command generator! (Brayconn is not responsible for any game crashes as a result of large TSC files)
