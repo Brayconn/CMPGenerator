@@ -124,15 +124,15 @@ namespace CMPGenerator
         {
             dataHandler.TSCType = true;
             cMPToolStripMenuItem.Checked = true;
-            lMPToolStripMenuItem.Checked = false;
+            sMPToolStripMenuItem.Checked = false;
             dataHandler.GenerateTSC();
         }
 
-        private void lMPToolStripMenuItem_Click(object sender, EventArgs e)
+        private void sMPToolStripMenuItem_Click(object sender, EventArgs e)
         {
             dataHandler.TSCType = false;
             cMPToolStripMenuItem.Checked = false;
-            lMPToolStripMenuItem.Checked = true;
+            sMPToolStripMenuItem.Checked = true;
             dataHandler.GenerateTSC();
         }
 

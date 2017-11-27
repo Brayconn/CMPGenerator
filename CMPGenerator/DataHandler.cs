@@ -124,7 +124,7 @@ namespace CMPGenerator
                         TSC[new Tuple<int, int>(tilex, tiley)] = $"<CMP{tilex.ToString("D4")}:{tiley.ToString("D4")}:{newTile.ToString("D4")}";
                         break;
 
-                    //<LMPxxxx:yyyy
+                    //<SMPxxxx:yyyy
                     case (false):
                         TSC[new Tuple<int, int>(tilex, tiley)] = "";
                         for (byte i = oldTile; i != newTile; i--)

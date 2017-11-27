@@ -37,6 +37,9 @@
             this.openTileset2 = new System.Windows.Forms.ToolStripMenuItem();
             this.exportToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.editToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.selectAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.regenerateTSCToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewMap1 = new System.Windows.Forms.ToolStripMenuItem();
             this.viewMap2 = new System.Windows.Forms.ToolStripMenuItem();
@@ -45,12 +48,9 @@
             this.optionsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.modeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.cMPToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.lMPToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
+            this.sMPToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.ignoreIdenticalTilesToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.selectAllToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.toolStripSeparator1 = new System.Windows.Forms.ToolStripSeparator();
-            this.regenerateTSCToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.richTextBox1 = new System.Windows.Forms.RichTextBox();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -84,7 +84,7 @@
             this.openTileset1,
             this.openTileset2});
             this.openToolStripMenuItem.Name = "openToolStripMenuItem";
-            this.openToolStripMenuItem.Size = new System.Drawing.Size(116, 22);
+            this.openToolStripMenuItem.Size = new System.Drawing.Size(156, 22);
             this.openToolStripMenuItem.Text = "Open";
             // 
             // openMap1
@@ -132,6 +132,26 @@
             this.editToolStripMenuItem.Name = "editToolStripMenuItem";
             this.editToolStripMenuItem.Size = new System.Drawing.Size(39, 20);
             this.editToolStripMenuItem.Text = "Edit";
+            // 
+            // selectAllToolStripMenuItem
+            // 
+            this.selectAllToolStripMenuItem.Name = "selectAllToolStripMenuItem";
+            this.selectAllToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.selectAllToolStripMenuItem.Text = "Select All";
+            this.selectAllToolStripMenuItem.Click += new System.EventHandler(this.selectAllToolStripMenuItem_Click);
+            // 
+            // toolStripSeparator1
+            // 
+            this.toolStripSeparator1.Name = "toolStripSeparator1";
+            this.toolStripSeparator1.Size = new System.Drawing.Size(154, 6);
+            // 
+            // regenerateTSCToolStripMenuItem
+            // 
+            this.regenerateTSCToolStripMenuItem.Enabled = false;
+            this.regenerateTSCToolStripMenuItem.Name = "regenerateTSCToolStripMenuItem";
+            this.regenerateTSCToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
+            this.regenerateTSCToolStripMenuItem.Text = "Regenerate TSC";
+            this.regenerateTSCToolStripMenuItem.Click += new System.EventHandler(this.regenerateTSCToolStripMenuItem_Click);
             // 
             // viewToolStripMenuItem
             // 
@@ -185,7 +205,7 @@
             // 
             this.modeToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.cMPToolStripMenuItem,
-            this.lMPToolStripMenuItem});
+            this.sMPToolStripMenuItem});
             this.modeToolStripMenuItem.Name = "modeToolStripMenuItem";
             this.modeToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
             this.modeToolStripMenuItem.Text = "Mode";
@@ -196,28 +216,17 @@
             this.cMPToolStripMenuItem.CheckOnClick = true;
             this.cMPToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.cMPToolStripMenuItem.Name = "cMPToolStripMenuItem";
-            this.cMPToolStripMenuItem.Size = new System.Drawing.Size(108, 22);
+            this.cMPToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
             this.cMPToolStripMenuItem.Text = "<CMP";
             this.cMPToolStripMenuItem.Click += new System.EventHandler(this.cMPToolStripMenuItem_Click);
             // 
-            // lMPToolStripMenuItem
+            // sMPToolStripMenuItem
             // 
-            this.lMPToolStripMenuItem.CheckOnClick = true;
-            this.lMPToolStripMenuItem.Name = "lMPToolStripMenuItem";
-            this.lMPToolStripMenuItem.Size = new System.Drawing.Size(108, 22);
-            this.lMPToolStripMenuItem.Text = "<LMP";
-            this.lMPToolStripMenuItem.Click += new System.EventHandler(this.lMPToolStripMenuItem_Click);
-            // 
-            // richTextBox1
-            // 
-            this.richTextBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.richTextBox1.Location = new System.Drawing.Point(13, 28);
-            this.richTextBox1.Name = "richTextBox1";
-            this.richTextBox1.Size = new System.Drawing.Size(259, 221);
-            this.richTextBox1.TabIndex = 1;
-            this.richTextBox1.Text = "";
+            this.sMPToolStripMenuItem.CheckOnClick = true;
+            this.sMPToolStripMenuItem.Name = "sMPToolStripMenuItem";
+            this.sMPToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.sMPToolStripMenuItem.Text = "<SMP";
+            this.sMPToolStripMenuItem.Click += new System.EventHandler(this.sMPToolStripMenuItem_Click);
             // 
             // ignoreIdenticalTilesToolStripMenuItem
             // 
@@ -229,25 +238,16 @@
             this.ignoreIdenticalTilesToolStripMenuItem.Text = "Ignore Identical Tiles";
             this.ignoreIdenticalTilesToolStripMenuItem.CheckedChanged += new System.EventHandler(this.ignoreIdenticalTilesToolStripMenuItem_CheckedChanged);
             // 
-            // selectAllToolStripMenuItem
+            // richTextBox1
             // 
-            this.selectAllToolStripMenuItem.Name = "selectAllToolStripMenuItem";
-            this.selectAllToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
-            this.selectAllToolStripMenuItem.Text = "Select All";
-            this.selectAllToolStripMenuItem.Click += new System.EventHandler(this.selectAllToolStripMenuItem_Click);
-            // 
-            // toolStripSeparator1
-            // 
-            this.toolStripSeparator1.Name = "toolStripSeparator1";
-            this.toolStripSeparator1.Size = new System.Drawing.Size(154, 6);
-            // 
-            // regenerateTSCToolStripMenuItem
-            // 
-            this.regenerateTSCToolStripMenuItem.Enabled = false;
-            this.regenerateTSCToolStripMenuItem.Name = "regenerateTSCToolStripMenuItem";
-            this.regenerateTSCToolStripMenuItem.Size = new System.Drawing.Size(157, 22);
-            this.regenerateTSCToolStripMenuItem.Text = "Regenerate TSC";
-            this.regenerateTSCToolStripMenuItem.Click += new System.EventHandler(this.regenerateTSCToolStripMenuItem_Click);
+            this.richTextBox1.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.richTextBox1.Location = new System.Drawing.Point(13, 28);
+            this.richTextBox1.Name = "richTextBox1";
+            this.richTextBox1.Size = new System.Drawing.Size(259, 221);
+            this.richTextBox1.TabIndex = 1;
+            this.richTextBox1.Text = "";
             // 
             // FormMain
             // 
@@ -287,7 +287,7 @@
         private System.Windows.Forms.ToolStripMenuItem optionsToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem modeToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem cMPToolStripMenuItem;
-        private System.Windows.Forms.ToolStripMenuItem lMPToolStripMenuItem;
+        private System.Windows.Forms.ToolStripMenuItem sMPToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem ignoreIdenticalTilesToolStripMenuItem;
         private System.Windows.Forms.ToolStripMenuItem selectAllToolStripMenuItem;
         private System.Windows.Forms.ToolStripSeparator toolStripSeparator1;
