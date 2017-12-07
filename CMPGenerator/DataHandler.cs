@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
@@ -11,33 +12,184 @@ namespace CMPGenerator
 {
     public class DataHandler
     {
+        public Map map1 { get; private set; }
+        public Map map2 { get; private set; }
+
         /// <summary>
-        /// PXM 0x10
+        /// What mode to use for TSC generation. true = CMP, false = SMP
         /// </summary>
-        //public static readonly byte[] header = { 0x50, 0x58, 0x4D, 0x10 };
-
-        public Map map1 { get; set; }
-        public Map map2 { get; set; }
-
-        public bool TSCType { get; set; } = true; //true = CMP, false = SMP
+        public bool TSCType { get; set; } = true;
         public bool ignoreIdenticalTiles { get; set; } = true; //Ignore Identical Tiles
-        public Dictionary<Tuple<int,int>, string> TSC { get; set; } = new Dictionary<Tuple<int,int>, string>();
+        public Dictionary<int, Dictionary<int, string>> TSC { get; private set; } = new Dictionary<int, Dictionary<int, string>>();
 
         public class Map
         {
+            /// <summary>
+            /// PXM 0x10
+            /// </summary>
             public static readonly byte[] header = { 0x50, 0x58, 0x4D, 0x10 };
 
-            public int xOffset { get; set; } = 0;
-            public int yOffset { get; set; } = 0;
-            public int xRange { get; set; }
-            public int yRange { get; set; }
+            public short xOffset { get; set; } = 0;
+            public short yOffset { get; set; } = 0;
 
-            public short width { get; set; }
-            public short height { get; set; }
+            public short xRange { get; set; }
+            public short yRange { get; set; }
 
-            public List<byte[]> data { get; set; } = new List<byte[]>();
+            public short width { get; private set; }
+            public short height { get; private set; }
 
-            public Tileset tileset { get; set; }
+            public int? invalidX { get; private set; }
+            public int? invalidY { get; private set; }
+
+            //public List<byte[]> data { get; set; } = new List<byte[]>();
+            public List<List<byte>> data { get; private set; } = new List<List<byte>>();
+            //public List<byte> rawdata { get; private set; } = new List<byte>();
+
+            public Tileset tileset { get; private set; }
+
+            public enum ResizeMode
+            {
+                OutOfBounds,
+                Default
+            }
+            public void Resize(string tsc)
+            {
+                Regex r = new Regex(@"<fl(?<mode>\+|-)(?<flag>.{4})", RegexOptions.IgnoreCase);
+                Match parsed = r.Match(tsc);
+                int value = 0;
+                if ((parsed.Success) ? int.TryParse(string.Join(null, Encoding.ASCII.GetBytes(parsed.Groups["flag"].Value).Select(v => v -= 0x30)),out value) : false)
+                {
+                    if (parsed.Groups["mode"].Value != "+" && parsed.Groups["mode"].Value != "-")
+                        return;
+
+                    short x = this.width;
+                    short y = this.height;
+
+                    //TODO merge redundant code (make function?)
+                    if (16176 <= value && value <= 16191) //Between @176 and @191 = width/x
+                    {
+                        BitArray b = new BitArray(BitConverter.GetBytes(x));
+                        b[value - 16176] = parsed.Groups["mode"].Value == "+";
+                        int[] s = new int[1];
+                        b.CopyTo(s, 0);
+                        x = (short)s[0];
+                    }
+                    else if (16192 <= value && value <= 16207) //Between @192 and @207 = height/y
+                    {
+                        BitArray b = new BitArray(BitConverter.GetBytes(y));
+                        b[value - 16192] = parsed.Groups["mode"].Value == "+";
+                        int[] s = new int[1];
+                        b.CopyTo(s, 0);
+                        y = (short)s[0];
+                    }
+                    else
+                        return;
+
+                    Resize(x, y, ResizeMode.OutOfBounds);
+                }                
+            }
+            public void Resize(short newWidth, short newHeight, ResizeMode mode)
+            {
+                switch (mode)
+                {
+                    #region Out Of Bounds
+
+                    case (ResizeMode.OutOfBounds):
+                        if (height == newHeight && width == newWidth)
+                            return;
+
+                        List<byte> rawData = new List<byte>(width * height);
+                        foreach (List<byte> item in data)
+                            rawData.AddRange(item);
+
+                        if (width != newWidth)
+                        {
+                            width = newWidth;
+                            invalidX = null;
+                            invalidY = null;
+                            int loop = 0;
+                            data = new List<List<byte>>(height);
+
+                            for (int i = 0; i < height; i++)
+                            {
+                                data.Add(new List<byte>(width));
+                                for (int _i = 0; _i < width; _i++)
+                                {
+                                    if (loop + i < rawData.Count)
+                                    {
+                                        data[i].Add(rawData[loop + _i]);
+                                    }
+                                    else
+                                    {
+                                        if (invalidX == null && invalidY == null)
+                                        {
+                                            invalidY = i;
+                                            invalidX = _i;
+                                        }
+                                        data[i].Add(0x00);
+                                    }
+                                }
+                                loop += width;
+                            }
+                        }
+                        if (height != newHeight)
+                        {
+                            height = newHeight;
+
+                            if (data.Count > height)
+                                data.RemoveRange(height, data.Count - height);
+                            else
+                            {
+                                //TODO refactor
+                                List<byte> row = new List<byte>(width);
+                                while (row.Count < width)
+                                    row.Add(0x00);
+                                while (data.Count < height)
+                                    data.Add(row);
+                            }
+                        }
+                        break;
+
+                    #endregion
+
+                    #region Default
+
+                    case (ResizeMode.Default):
+                        if (width != newWidth)
+                        {
+                            width = newWidth;
+
+                            for (int i = 0; i < data.Count; i++)
+                            {
+                                if (data[i].Count > width)
+                                    data[i].RemoveRange(width, data[i].Count - width);
+                                else
+                                    while (data[i].Count < width)
+                                        data[i].Add(0x00);
+                            }
+                        }
+
+                        if (height != newHeight)
+                        {
+                            height = newHeight;
+
+                            if (data.Count > height)
+                                data.RemoveRange(height, data.Count - height);
+                            else
+                            {
+                                //TODO refactor
+                                List<byte> row = new List<byte>(width);
+                                while (row.Count < width)
+                                    row.Add(0x00);
+                                while (data.Count < height)
+                                    data.Add(row);
+                            }
+                        }
+                        break;
+
+                        #endregion
+                }
+            }
 
             public Map(string mapPath, string tilesetPath, int tileSize = 16) : this(mapPath, new Bitmap(tilesetPath), tileSize) { }
             public Map(string mapPath, Bitmap tileset, int tileSize = 16)
@@ -46,16 +198,18 @@ namespace CMPGenerator
                 {
                     if (!br.ReadBytes(4).SequenceEqual(header))
                         return;
-
+                    
                     this.width = br.ReadInt16();
                     this.height = br.ReadInt16();
                     xRange = this.width;
                     yRange = this.height;
-                    
+                    invalidX = this.width;
+                    invalidY = this.height;
+
                     //this.data = new List<byte[]>();
                     while (data.Count < height)
                     {
-                        this.data.Add(br.ReadBytes(width));
+                        this.data.Add(br.ReadBytes(width).ToList());
                     }
                 }
                 this.tileset = new Tileset(tileset,tileSize);
@@ -113,52 +267,96 @@ namespace CMPGenerator
         }
         public void UpdateTSC(int tilex, int tiley)
         {
-            byte oldTile = map1.data[tiley + map1.yOffset][tilex + map1.xOffset];
+            byte? oldTile = null;
+            if (tiley + map1.yOffset < map1.height && tilex + map1.xOffset < map1.width)
+                oldTile = map1.data[tiley + map1.yOffset][tilex + map1.xOffset];
+
             byte newTile = map2.data[tiley + map2.yOffset][tilex + map2.xOffset];
+
             if (!ignoreIdenticalTiles || oldTile != newTile)
             {
+                if (!TSC.ContainsKey(tiley))
+                    TSC.Add(tiley, new Dictionary<int, string>());
+
                 switch (TSCType)
                 {
                     //<CMPxxxx:yyyy:tttt
                     case (true):
-                        TSC[new Tuple<int, int>(tilex, tiley)] = $"<CMP{tilex.ToString("D4")}:{tiley.ToString("D4")}:{newTile.ToString("D4")}";
+                        TSC[tiley][tilex] = $"<CMP{tilex.ToString("D4")}:{tiley.ToString("D4")}:{newTile.ToString("D4")}";
                         break;
 
                     //<SMPxxxx:yyyy
                     case (false):
-                        TSC[new Tuple<int, int>(tilex, tiley)] = "";
-                        for (byte i = oldTile; i != newTile; i--)
+                        TSC[tiley][tilex] = "";
+                        for (byte i = (byte)oldTile; i != newTile; i--)
                         {
-                            TSC[new Tuple<int, int>(tilex, tiley)] += $"<SMP{tilex.ToString("D4")}:{tiley.ToString("D4")}";
+                            TSC[tiley][tilex] += $"<SMP{tilex.ToString("D4")}:{tiley.ToString("D4")}";
                         }
                         break;
                 }
             }
+            else if((TSC.ContainsKey(tiley)) ? TSC[tiley].ContainsKey(tilex) : false)
+            {
+                TSC[tiley].Remove(tilex);
+                if (TSC[tiley].Count == 0)
+                    TSC.Remove(tiley);
+            }
+        }
+
+        private string ShortToOOBTSC(short n1, short n2, bool width)
+        {
+            string output = "";
+            BitArray b1 = new BitArray(BitConverter.GetBytes(n1));
+            BitArray b2 = new BitArray(BitConverter.GetBytes(n2));
+
+            //width = @176
+            //height = @192
+            int place = (width) ? 176 : 192;
+
+            for (int i = 0; i < 16; i++)
+                if(b1[i] != b2[i])
+                    output += $"<FL{(b2[i] ? "+" : "-")}@{place + i}";
+
+            return output;
         }
 
         public void GenerateTSC()
         {
             if (map1 != null && map2 != null)
             {
-                TSC.Clear();
-                for (int i = 0; i < map1.yRange; i++)
+                if(map1.xOffset + map1.xRange > map1.invalidX ||
+                    map1.yOffset + map1.yRange > map1.invalidY ||
+                    map2.xOffset + map2.xRange > map2.invalidX ||
+                    map2.yOffset + map2.yRange > map2.invalidY)
                 {
-                    for (int _i = 0; _i < map1.xRange; _i++)
+                    TSCType = true; //TODO need to update UI
+                }
+
+                string OOBFlags = "";
+                if(map1.yRange != map2.yRange || map1.xRange != map2.xRange)
+                {
+                    OOBFlags += ShortToOOBTSC(map1.xRange, map2.xRange, true) + ShortToOOBTSC(map1.yRange, map2.yRange, false);
+                }
+
+                TSC.Clear();
+                for (int i = 0; i < map2.yRange; i++)
+                {
+                    for (int _i = 0; _i < map2.xRange; _i++)
                     {
                         UpdateTSC(_i, i);
                     }
                 }
-                TSCUpdated(this, new TSCUpdatedEventArgs(GenerateTSCString()));
+                TSCUpdated(this, new TSCUpdatedEventArgs(OOBFlags + ((OOBFlags.Length > 0) ? "\n" : "") + GenerateTSCString()));
             }
         }
 
         private string GenerateTSCString()
         {
             string formattedTSC = "";
-            int[] rows = TSC.Keys.Select(x => x.Item2).Distinct().ToArray();
+            int[] rows = TSC.Keys.Distinct().ToArray();
             for (int i = 0; i < rows.Length; i++)
             {
-                formattedTSC += string.Join(null, TSC.Where(x => x.Key.Item2 == rows[i]).Select(v => v.Value));
+                formattedTSC += string.Join(null, TSC[rows[i]].Values);
                 if (i + 1 != rows.Length)
                     formattedTSC += '\n';
             }
@@ -171,10 +369,14 @@ namespace CMPGenerator
         public class FileLoadedEventArgs : EventArgs
         {
             public Map map { get; }
+            public string path { get; }
+            public int number { get; }
 
-            public FileLoadedEventArgs(Map map)
+            public FileLoadedEventArgs(Map map, string path, int number)
             {
                 this.map = map;
+                this.path = path;
+                this.number = number;
             }
         }
 
@@ -186,32 +388,39 @@ namespace CMPGenerator
             Map newMap = new Map(mapPath, tilesetPath);
             if (newMap == null)
                 return;
-            switch (mapNumber)
-            {
-                case (1):
-                    map1 = newMap;
-                    SetUpRanges();
-                    Map1Loaded(this, new FileLoadedEventArgs(map1));
-                    break;
-                case (2):
-                    map2 = newMap;
-                    SetUpRanges();
-                    Map2Loaded(this, new FileLoadedEventArgs(map2));
-                    break;
-            }
 
+            //TODO make not a horrible mess of if/elses
+            if (mapNumber == 1)
+                map1 = newMap;
+            else if (mapNumber == 2)
+                map2 = newMap;
+            else
+                return;
+
+            bool rangesSet = SetUpRanges();
+
+            if (rangesSet || mapNumber == 1)
+                Map1Loaded(this, new FileLoadedEventArgs(map1, mapPath, 1));
+            else
+                return;
+
+            if (rangesSet || mapNumber == 2)
+                Map2Loaded(this, new FileLoadedEventArgs(map2, mapPath, 2));
+            else
+                return;
         }
 
-        private void SetUpRanges()
+        private bool SetUpRanges()
         {
-            if( map1 != null && map2 != null)
+            if (map1 != null && map2 != null)
             {
                 map1.xRange = map2.xRange = Math.Min(map1.width, map2.width);
                 map1.yRange = map2.yRange = Math.Min(map1.height, map2.height);
-                Map1Loaded(this, new FileLoadedEventArgs(map1)); //HACK
-                Map2Loaded(this, new FileLoadedEventArgs(map2));
                 GenerateTSC();
+                return true;
             }
+            else
+                return false;
         }
 
 
@@ -238,7 +447,7 @@ namespace CMPGenerator
                 bw.Write(mapToSave.height);
 
                 for (int i = 0; i < mapToSave.data.Count; i++)
-                    for (int _i = 0; _i < mapToSave.data[i].Length; _i++)
+                    for (int _i = 0; _i < mapToSave.data[i].Count; _i++)
                         bw.Write(mapToSave.data[i][_i]);
             }
         }
@@ -258,27 +467,40 @@ namespace CMPGenerator
                     return;
             }
 
-            Regex r = new Regex(@"<(?<name>.{3})(?<x>\d{4}).(?<y>\d{4})(?:.(?<tile>\d{4}))?");
+            //Regex r = new Regex(@"<(?<name>.{3})(?<x>\d{4}).(?<y>\d{4})(?:.(?<tile>\d{4}))?");
+            Regex r = new Regex(@"<(?<name>.{3})(?<x>.{4})(?:.(?<y>.{4})(?:.(?<tile>.{4}))?)?");
             MatchCollection parsed = r.Matches(tsc);
             for(int i = 0; i < parsed.Count; i++)
             {
-                int x = 0;
-                int y = 0;
-                int tile = 0;
-                //If both int.TryParses, and the tile parsing (where applicable), succeseed, and the resulting x/y values are within the map's bounds...
-                if (
-                    (int.TryParse(parsed[i].Groups["x"].Value,out x) &&
-                    int.TryParse(parsed[i].Groups["y"].Value, out y) &&
-                    (parsed[i].Groups["tile"].Success) ? int.TryParse(parsed[i].Groups["tile"].Value,out tile) : true) ? x < mapToEdit.width && y < mapToEdit.height : false)
+                if (parsed[i].Groups["name"].Value.StartsWith("fl", true, null))
                 {
-                    switch (parsed[i].Groups["name"].Value)
+                    mapToEdit.Resize(parsed[i].Value);
+                }
+                else
+                {
+                    int x = 0;
+                    int y = 0;
+                    int tile = 0;
+                    //If both int.TryParses, and the tile parsing (where applicable), succeseed, and the resulting x/y values are within the map's bounds...
+                    if (
+                        (int.TryParse(string.Join(null, Encoding.ASCII.GetBytes(parsed[i].Groups["x"].Value).Select(v => v -= 0x30)), out x)
+                        && int.TryParse(string.Join(null, Encoding.ASCII.GetBytes(parsed[i].Groups["y"].Value).Select(v => v -= 0x30)), out y) 
+                        && (parsed[i].Groups["tile"].Success) ?
+                            int.TryParse(string.Join(null, Encoding.ASCII.GetBytes(parsed[i].Groups["tile"].Value).Select(v => v -= 0x30)), out tile) :
+                            true) ?
+                            x < mapToEdit.width && y < mapToEdit.height :
+                            false
+                       )
                     {
-                        case ("SMP"):
-                            mapToEdit.data[y][x]--;
-                            break;
-                        case ("CMP"):
-                            mapToEdit.data[y][x] = (byte)tile;
-                            break;
+                        switch (parsed[i].Groups["name"].Value.ToLower())
+                        {
+                            case ("smp"):
+                                mapToEdit.data[y][x]--;
+                                break;
+                            case ("cmp"):
+                                mapToEdit.data[y][x] = (byte)tile;
+                                break;
+                        }
                     }
                 }
             }

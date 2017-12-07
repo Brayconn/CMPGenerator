@@ -14,12 +14,16 @@ namespace CMPGenerator
 {
     public partial class FormMap : Form
     {
-        public DataHandler dataHandler { get; set; }
+        public DataHandler dataHandler { get; private set; }
+
         public FormTileset tileset { get; private set; }
+        private bool tilesetShown { get; set; } = false;
+
         private EditRange editRange { get; set; }
+        private bool editRangeShown { get; set; } = false;
 
         public DataHandler.Map map { get; private set; }
-        private Bitmap mapDisplay { get; set; } = null;
+        private Bitmap mapImage { get; set; } = null;
         private float zoomLevel { get; set; } = 1;
         private int mapNumber { get; set; }
 
@@ -29,12 +33,28 @@ namespace CMPGenerator
             tileset = new FormTileset();
             mapNumber = mn;
 
+            tileset.FormClosing += (_o, _e) => { _e.Cancel = true; viewTileset.Checked = false; }; ;
+
             InitializeComponent();
+
+            viewTileset.CheckedChanged += delegate { toggleForm(tileset, viewTileset.Checked); };
+
+            pictureBox1.MouseWheel += PictureBox1_MouseWheel;
         }
 
-        private void FormMap_Load(object sender, EventArgs e)
+        private void PictureBox1_MouseWheel(object sender, MouseEventArgs e)
         {
-            
+            if(ModifierKeys == Keys.Control)
+            { 
+                //TODO memory leak?
+                //float newZoom = e.Delta / (float)(Math.Abs(e.Delta) * 4);
+                float newZoom = (e.Delta >= 0) ? (float)0.25 : (float)-0.25;
+                if (zoomLevel + newZoom > 0 && zoomLevel + newZoom <= 5)
+                {
+                    zoomLevel += newZoom;
+                    DrawMap();
+                }
+            }
         }
 
         private static void toggleForm(Form form, bool state)
@@ -47,23 +67,25 @@ namespace CMPGenerator
 
         public void FileLoaded(object sender, DataHandler.FileLoadedEventArgs e)
         {
-            //Text = $"({map.width} x {map.height})";
             map = e.map;
+            this.Text = $"(Map {e.number}: {Path.GetFileName(e.path)})";
             saveAsToolStripMenuItem.Enabled = true;
 
             viewRangeEditor.Enabled = true;
+            viewTileset.Enabled = true;
             applyTSCToolStripMenuItem.Enabled = true;
-            editRange = new EditRange(map.xOffset, map.yOffset, map.width - map.xRange, map.height - map.yRange);
-            editRange.numericUpDown1.ValueChanged += DrawRange;
-            editRange.numericUpDown2.ValueChanged += DrawRange;
+            editRange = new EditRange(map);
+            editRange.RangeEdited += UpdateRange;
             editRange.FormClosing += (_o, _e) => { _e.Cancel = true; viewRangeEditor.Checked = false; };
             viewRangeEditor.CheckedChanged += delegate { toggleForm(editRange, viewRangeEditor.Checked); };
+
+            viewChangeSize.Enabled = true;            
         }
 
-        private void DrawRange(object sender, EventArgs e)
+        private void UpdateRange(object sender, EventArgs e)
         {
-            map.xOffset = (int)editRange.numericUpDown1.Value;
-            map.yOffset = (int)editRange.numericUpDown2.Value;
+            map.xOffset = (short)editRange.xOffsetNumericUpDown.Value;
+            map.yOffset = (short)editRange.yOffsetNumericUpDown.Value;
             dataHandler.GenerateTSC();
             DrawMap();
         }
@@ -87,87 +109,67 @@ namespace CMPGenerator
         {
             if(pictureBox1.Image != null)
                 pictureBox1.Image.Dispose();
-            pictureBox1.Image = new Bitmap(DrawRange(mapDisplay), (int)(mapDisplay.Width * zoomLevel), (int)(mapDisplay.Height * zoomLevel));
+            pictureBox1.Image = new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel));
             pictureBox1.Refresh();
         }
 
         private void InitializeMap()
         {
-            mapDisplay = new Bitmap(map.width * map.tileset.tileSize, map.height * map.tileset.tileSize);
+            mapImage = new Bitmap(map.width * map.tileset.tileSize, map.height * map.tileset.tileSize);
 
             for (int i = 0; i < map.data.Count; i++)
             {
-                for (int _i = 0; _i < map.data[i].Length; _i++)
+                for (int _i = 0; _i < map.data[i].Count; _i++)
                 {
-                    DrawTile(_i, i, mapDisplay);
+                    DrawTile(_i, i, mapImage);
                 }
             }
         }
 
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
         {
-            if (mapDisplay == null && map != null)
+            if (mapImage == null && map != null)
             {
                 InitializeMap();
                 DrawMap();
+
+                //Sets the window as big as the map, or as big as the screen if that would cuase it to go offscreen
+                var monitor = Screen.FromControl(this);
+                Height = Math.Min(pictureBox1.Image.Height + 63, monitor.Bounds.Height - Top);
+                Width = Math.Min(pictureBox1.Image.Width + 16, monitor.Bounds.Width - Left);
+
+                pictureBox1.Invalidate();
                 //pictureBox1.Refresh();
             }
         }        
 
-        private void DrawTile(int tileXCoord, int tileYCoord, Bitmap outputMap)
+        private void DrawTile(int mapTileXCoord, int mapTileYCoord, Bitmap outputMap)
         {
-            if (mapDisplay == null)
+            if (mapImage == null)
             {
                 InitializeMap();
             }
             else
             {
-                using (Graphics g = Graphics.FromImage(mapDisplay))
+                using (Graphics g = Graphics.FromImage(mapImage))
                 {
-                    int tileXOffset = map.data[tileYCoord][tileXCoord] - (map.tileset.width * (map.data[tileYCoord][tileXCoord] / map.tileset.width));
-                    int tileYOffset = (map.data[tileYCoord][tileXCoord] - tileXOffset) / (map.tileset.width);
-
+                    int tilesetTileYOffset = map.data[mapTileYCoord][mapTileXCoord] / map.tileset.width;
+                    int tilesetTileXOffset = map.data[mapTileYCoord][mapTileXCoord] - (map.tileset.width * tilesetTileYOffset);
+                    
                     Bitmap tileToDraw = map.tileset.image.Clone(
                         new Rectangle(
-                            tileXOffset * map.tileset.tileSize,
-                            tileYOffset * map.tileset.tileSize,
+                            tilesetTileXOffset * map.tileset.tileSize,
+                            tilesetTileYOffset * map.tileset.tileSize,
                             map.tileset.tileSize,
                             map.tileset.tileSize),
                         PixelFormat.Format4bppIndexed //TODO not sure if nessecary?
                         );
 
                     g.DrawImage(tileToDraw,
-                            tileXCoord * map.tileset.tileSize,
-                            tileYCoord * map.tileset.tileSize
+                            mapTileXCoord * map.tileset.tileSize,
+                            mapTileYCoord * map.tileset.tileSize
                             );
                 }
-
-                //TODO figure out how to use this to save on memory...
-                /*
-                if (!e.Graphics.IsVisible(_i * 16, i * 16))
-                    break;
-                */
-
-                /*
-                int x = 0;
-
-                int y = 0;
-
-                int loopCount = 0;
-
-                while(loopCount < dataHandler.loadedMaps[mapNumber].data[i][_i])
-                {
-                    if (x == (dataHandler.loadedMaps[mapNumber].tileset.Width / 16) - 1)
-                    {
-                        x = 0;
-                        y++;
-                    }
-                    else
-                        x++;
-
-                    loopCount++;
-                }
-                */
             }
         }
 
@@ -214,7 +216,7 @@ namespace CMPGenerator
                             );
                     }
                     
-                    DrawTile(x, y, mapDisplay);
+                    DrawTile(x, y, mapImage);
                     DrawMap();
                 }
             }
@@ -257,12 +259,44 @@ namespace CMPGenerator
         private void applyTSCToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ApplyTSC at = new ApplyTSC();
-            if(at.ShowDialog() == DialogResult.OK && at.Tsc.Length >= 9) //9 is the length of an <SMP command, which is the smallest one recognised.
+            if(at.ShowDialog() == DialogResult.OK && at.Tsc.Length >= 8) //8 is the length of an <FL+/<FL- command, which is the smallest one recognised.
             {
                 dataHandler.ApplyTSC(at.Tsc, mapNumber);
                 InitializeMap();
                 DrawMap();
                 dataHandler.GenerateTSC();
+            }
+        }
+
+        private void changeSizeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            MapSize ms = new MapSize(map.width, map.height);
+
+            if(ms.ShowDialog() == DialogResult.OK)
+            {
+                map.Resize(ms.width, ms.height, ms.resizeMode);
+                editRange.updateMapSize();
+                InitializeMap();
+                DrawMap();
+                if (ms.resizeMode == DataHandler.Map.ResizeMode.OutOfBounds)
+                    dataHandler.GenerateTSC();
+            }
+        }
+
+        private void FormMap_VisibleChanged(object sender, EventArgs e)
+        {
+            if(Visible)
+            {
+                viewTileset.Checked = tilesetShown;
+                viewRangeEditor.Checked = editRangeShown;
+            }
+            else
+            {
+                tilesetShown = tileset.Visible;
+                editRangeShown = editRange.Visible;
+
+                viewTileset.Checked = false;
+                viewRangeEditor.Checked = false;
             }
         }
     }

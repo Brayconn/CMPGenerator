@@ -13,27 +13,59 @@ namespace CMPGenerator
 {
     public partial class EditRange : Form
     {
-        int n1 { get; set; }
-        int n2 { get; set; }
-        int n1Max { get; set; }
-        int n2Max { get; set; }
+        DataHandler.Map map { get; }
+        public event EventHandler RangeEdited = new EventHandler((o, e) => { });
 
-        public EditRange(int x, int y, int xmax, int ymax)
+        public void updateMapSize()
         {
-            n1 = x;
-            n2 = y;
-            n1Max = xmax;
-            n2Max = ymax;
-
-            InitializeComponent();
+            xOffsetNumericUpDown.Value = Math.Min(xOffsetNumericUpDown.Value, xOffsetNumericUpDown.Maximum = map.width - map.xRange);
+            yOffsetNumericUpDown.Value = Math.Min(yOffsetNumericUpDown.Value, yOffsetNumericUpDown.Maximum = map.height - map.yRange);
+            xRangeNumericUpDown.Value = Math.Min(xRangeNumericUpDown.Value, xRangeNumericUpDown.Maximum = map.width);
+            yRangeNumericUpDown.Value = Math.Min(yRangeNumericUpDown.Value, yRangeNumericUpDown.Maximum = map.height);
         }
 
-        private void EditRange_Load(object sender, EventArgs e)
+        public EditRange(DataHandler.Map map)
         {
-            numericUpDown1.Value = n1;
-            numericUpDown1.Maximum = n1Max;
-            numericUpDown2.Value = n2;
-            numericUpDown2.Maximum = n2Max;
+            this.map = map;
+            InitializeComponent();
+
+            xOffsetNumericUpDown.Value = map.xOffset;
+            xOffsetNumericUpDown.Maximum = map.width - map.xRange;
+
+            yOffsetNumericUpDown.Value = map.yOffset;
+            yOffsetNumericUpDown.Maximum = map.height - map.yRange;
+
+            xRangeNumericUpDown.Value = map.xRange;
+            xRangeNumericUpDown.Maximum = map.width;
+
+            yRangeNumericUpDown.Value = map.yRange;
+            yRangeNumericUpDown.Maximum = map.height;
+        }
+
+        private void numericUpDown1_ValueChanged(object sender, EventArgs e)
+        {
+            map.xOffset = (short)xOffsetNumericUpDown.Value;
+            RangeEdited(this, new EventArgs());
+        }
+
+        private void numericUpDown2_ValueChanged(object sender, EventArgs e)
+        {
+            map.yOffset = (short)yOffsetNumericUpDown.Value;
+            RangeEdited(this, new EventArgs());
+        }
+
+        private void numericUpDown3_ValueChanged(object sender, EventArgs e)
+        {
+            map.xRange = (short)xRangeNumericUpDown.Value;
+            xOffsetNumericUpDown.Value = Math.Min(xOffsetNumericUpDown.Value, xOffsetNumericUpDown.Maximum = map.width - map.xRange);
+            RangeEdited(this, new EventArgs());
+        }
+
+        private void numericUpDown4_ValueChanged(object sender, EventArgs e)
+        {
+            map.yRange = (short)yRangeNumericUpDown.Value;
+            yOffsetNumericUpDown.Maximum = Math.Min(yOffsetNumericUpDown.Value, map.height - map.yRange);
+            RangeEdited(this, new EventArgs());
         }
     }
 }

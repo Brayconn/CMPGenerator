@@ -75,6 +75,7 @@
             this.Controls.Add(this.RichTextbox);
             this.Controls.Add(this.OK);
             this.Controls.Add(this.Cancel);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.SizableToolWindow;
             this.Name = "ApplyTSC";
             this.Text = "ApplyTSC";
             this.ResumeLayout(false);

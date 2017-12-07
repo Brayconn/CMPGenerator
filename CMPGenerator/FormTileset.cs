@@ -21,20 +21,37 @@ namespace CMPGenerator
 
         public void FileLoaded(object sender, DataHandler.FileLoadedEventArgs e)
         {
-            tileset = e.map.tileset;
+            tileset = e.map.tileset;           
         }
 
+        private void DrawMap()
+        {
+            Bitmap b = new Bitmap(tileset.image);
+            using (Graphics g = Graphics.FromImage(b))
+            {
+
+                int y = tileset.selectedTile / tileset.width;
+                int x = tileset.selectedTile - (tileset.width * y);
+
+                g.DrawRectangle(new Pen(Color.White, 1), x * 16, y * 16, 16, 16);
+            }
+            if (pictureBox1.Image != null)
+                pictureBox1.Image.Dispose();
+            pictureBox1.Image = b;
+            pictureBox1.Refresh();
+        }
         private void pictureBox1_Paint(object sender, PaintEventArgs e)
         {
-            if (tileset != null)
+            if (pictureBox1.Image == null && tileset != null)
             {
-                //e.Graphics.Clear(Color.Gray);
-                e.Graphics.DrawImage(tileset.image, 0,0);
+                DrawMap();
+                
+                //Sets the window as big as the map, or as big as the screen if that would cuase it to go offscreen
+                var monitor = Screen.FromControl(this);
+                Height = Math.Min(pictureBox1.Image.Height + 39, monitor.Bounds.Height - Top);
+                Width = Math.Min(pictureBox1.Image.Width + 16, monitor.Bounds.Width - Left);
 
-                int x = tileset.selectedTile - (tileset.width * (tileset.selectedTile / tileset.width));
-                int y = (tileset.selectedTile - x) / tileset.width;
-                e.Graphics.DrawRectangle(new Pen(Color.White, 1), x*16, y*16, 16, 16);
-                //e.Graphics.DrawImageUnscaledAndClipped(dataHandler.loadedMaps[tilesetNumber].tileset, e.ClipRectangle);
+                pictureBox1.Invalidate();
             }
         }
 
@@ -52,7 +69,8 @@ namespace CMPGenerator
             if (x <= tileset.width && y <= tileset.height)
             {             
                 tileset.selectedTile =(byte)(x + y*(tileset.width));
-                pictureBox1.Refresh();
+                DrawMap();
+                //pictureBox1.Refresh();
             }
         }
     }

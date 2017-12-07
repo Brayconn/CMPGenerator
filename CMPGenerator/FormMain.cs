@@ -23,8 +23,6 @@ namespace CMPGenerator
             dataHandler = dh;
             dataHandler.TSCUpdated += (o, e) => { richTextBox1.Text = e.TSC; };
 
-            //Tileset1 = new FormTileset(dataHandler);
-            //Tileset2 = new FormTileset(dataHandler);
             Map1 = new FormMap(dataHandler, 1);
             Map2 = new FormMap(dataHandler, 2);
 
@@ -42,19 +40,16 @@ namespace CMPGenerator
             //Redirect the FormClosing event to go through my own code
             Map1.FormClosing += (_o, _e) => { _e.Cancel = true; viewMap1.Checked = false; };
             Map2.FormClosing += (_o, _e) => { _e.Cancel = true; viewMap2.Checked = false; };
-            Map1.tileset.FormClosing += (_o, _e) => { _e.Cancel = true; viewTileset1.Checked = false; }; ;
-            Map2.tileset.FormClosing += (_o, _e) => { _e.Cancel = true; viewTileset2.Checked = false; }; ;
 
             InitializeComponent();
+
+            //Redirect the CheckedChanged event to go through aprox. the same code
+            viewMap1.CheckedChanged += delegate { toggleForm(Map1, viewMap1.Checked); };
+            viewMap2.CheckedChanged += delegate { toggleForm(Map2, viewMap2.Checked); };
         }
 
         private void FormMain_Load(object sender, EventArgs e)
         {
-            //Redirect the CheckedChanged event to go through aprox. the same code
-            viewMap1.CheckedChanged += delegate { toggleForm(Map1, viewMap1.Checked); };
-            viewMap2.CheckedChanged += delegate { toggleForm(Map2, viewMap2.Checked); };
-            viewTileset1.CheckedChanged += delegate { toggleForm(Map1.tileset, viewTileset1.Checked); };
-            viewTileset2.CheckedChanged += delegate { toggleForm(Map2.tileset, viewTileset2.Checked); };
         }
 
         private void FilesLoaded(object sender, DataHandler.FileLoadedEventArgs e)
@@ -100,7 +95,10 @@ namespace CMPGenerator
                         if (MessageBox.Show("Would you like to load this map as map 2 as well?", "Map Loading", MessageBoxButtons.YesNo) == DialogResult.No)
                             viewMap2.Checked = openMap(2);
                         else
+                        {
                             dataHandler.Load(omd.FileName, otd.FileName, 2);
+                            viewMap2.Checked = true;
+                        }
                     }
                     openMap2.Enabled = true;
                     openTileset2.Enabled = true;
