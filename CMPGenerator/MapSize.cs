@@ -14,7 +14,7 @@ namespace CMPGenerator
     {
         public short width { get; private set; }
         public short height { get; private set; }
-        public DataHandler.Map.ResizeMode resizeMode { get; private set; } = DataHandler.Map.ResizeMode.Default;
+        public MapComparer.Map.ResizeMode resizeMode { get; private set; } = MapComparer.Map.ResizeMode.NullInsert;
 
         public MapSize(short width, short height)
         {
@@ -37,7 +37,7 @@ namespace CMPGenerator
 
         private void radioButton1_CheckedChanged(object sender, EventArgs e)
         {
-            resizeMode = (radioButton1.Checked) ? DataHandler.Map.ResizeMode.Default : DataHandler.Map.ResizeMode.OutOfBounds;
+            resizeMode = (radioButton1.Checked) ? MapComparer.Map.ResizeMode.NullInsert : MapComparer.Map.ResizeMode.OutOfBounds;
         }
     }
 }

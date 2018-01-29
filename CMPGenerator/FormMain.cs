@@ -13,67 +13,81 @@ namespace CMPGenerator
 {
     public partial class FormMain : Form
     {
-        public DataHandler dataHandler { get; set; }
+        public MapComparer TSCComparer { get; set; }
 
         private FormMap Map1 { get; set; }
         private FormMap Map2 { get; set; }
         
-        public FormMain(DataHandler dh)
+        public FormMain()
         {
-            dataHandler = dh;
-            dataHandler.TSCUpdated += (o, e) => { richTextBox1.Text = e.TSC; };
+            Map1 = new FormMap(true);
+            Map2 = new FormMap(false);
 
-            Map1 = new FormMap(dataHandler, 1);
-            Map2 = new FormMap(dataHandler, 2);
+            TSCComparer = new MapComparer(Map1.map, Map2.map);
+            TSCComparer.TSCModeUpdated += updateTSCModeSwitches;
+            TSCComparer.TSCUpdated += (o, e) =>
+            {
+                richTextBox1.Text = e.TSC;
+            };
 
-            dataHandler.Map1Loaded += FilesLoaded;
-            dataHandler.Map2Loaded += FilesLoaded;
+            Map1.map.MapLoaded += FilesLoaded;
+            Map2.map.MapLoaded += FilesLoaded;
 
-            dataHandler.Map1Loaded += Map1.FileLoaded;
-            dataHandler.Map2Loaded += Map2.FileLoaded;
-            Map1.TileChanged += dataHandler.UpdateTSC;
-            Map2.TileChanged += dataHandler.UpdateTSC;
-
-            dataHandler.Map1Loaded += Map1.tileset.FileLoaded; //TODO maybe don't use this event???????
-            dataHandler.Map2Loaded += Map2.tileset.FileLoaded;
-            
-            //Redirect the FormClosing event to go through my own code
             Map1.FormClosing += (_o, _e) => { _e.Cancel = true; viewMap1.Checked = false; };
             Map2.FormClosing += (_o, _e) => { _e.Cancel = true; viewMap2.Checked = false; };
 
             InitializeComponent();
 
-            //Redirect the CheckedChanged event to go through aprox. the same code
-            viewMap1.CheckedChanged += delegate { toggleForm(Map1, viewMap1.Checked); };
-            viewMap2.CheckedChanged += delegate { toggleForm(Map2, viewMap2.Checked); };
+            viewMap1.CheckedChanged += delegate { Map1.Visible = viewMap1.Checked; };
+            viewMap2.CheckedChanged += delegate { Map2.Visible = viewMap2.Checked; };
         }
 
-        private void FormMain_Load(object sender, EventArgs e)
+        private void FilesLoaded(object sender, EventArgs e)
         {
-        }
-
-        private void FilesLoaded(object sender, DataHandler.FileLoadedEventArgs e)
-        {
-            if(dataHandler.map1 != null && dataHandler.map2 != null)
+            if(Map1.map.Loaded && Map2.map.Loaded)
             {
                 exportToolStripMenuItem.Enabled = true;
                 regenerateTSCToolStripMenuItem.Enabled = true;
+                //UNSURE could unsubcribe from both events now...?
             }
         }
 
         #region Opening Code
 
+        //HACK part of this can probably be put into a function
+
         private void openMap1_Click(object sender, EventArgs e)
         {
-            viewMap1.Checked = openMap(1);
+            Tuple<string, string> mapAndTilesetPaths = ShowOpenMapUI();
+            if ((mapAndTilesetPaths != null) ? Map1.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2) : false)
+            {
+                viewMap1.Checked = true;
+                openMap2.Enabled = true;
+                openTileset2.Enabled = true;
+                if (!Map2.map.Loaded)
+                {
+                    if (MessageBox.Show("Would you like to load this map as map 2 as well?", "Map Loading", MessageBoxButtons.YesNo) == DialogResult.No)
+                    {
+                        openMap2.PerformClick();
+                    }
+                    else if (Map2.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2)) //UNSURE need to test
+                    {
+                        viewMap2.Checked = true;
+                    }
+                }
+            }
         }
 
         private void openMap2_Click(object sender, EventArgs e)
         {
-            viewMap2.Checked = openMap(2);
+            Tuple<string, string> mapAndTilesetPaths = ShowOpenMapUI();
+            if ((mapAndTilesetPaths != null) ? Map2.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2) : false)
+            {
+                viewMap2.Checked = true;
+            }
         }
 
-        private bool openMap(int mapNumber)
+        private Tuple<string,string> ShowOpenMapUI()
         {
             OpenFileDialog omd = new OpenFileDialog()
             {
@@ -89,55 +103,41 @@ namespace CMPGenerator
                 };
                 if (otd.ShowDialog() == DialogResult.OK)
                 {
-                    dataHandler.Load(omd.FileName, otd.FileName, mapNumber);
-                    if (dataHandler.map2 == null && mapNumber == 1)
-                    {
-                        if (MessageBox.Show("Would you like to load this map as map 2 as well?", "Map Loading", MessageBoxButtons.YesNo) == DialogResult.No)
-                            viewMap2.Checked = openMap(2);
-                        else
-                        {
-                            dataHandler.Load(omd.FileName, otd.FileName, 2);
-                            viewMap2.Checked = true;
-                        }
-                    }
-                    openMap2.Enabled = true;
-                    openTileset2.Enabled = true;
-                    return true;
+                    return new Tuple<string, string>(omd.FileName, otd.FileName);
                 }
             }
-            return false;
+            return null;
         }
 
         #endregion
 
-        private static void toggleForm(Form form, bool state)
-        {
-            if (state)
-                form.Show();
-            else
-                form.Hide();
-        }
+        #region TSC Mode Switching Stuff
 
         private void cMPToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            dataHandler.TSCType = true;
-            cMPToolStripMenuItem.Checked = true;
-            sMPToolStripMenuItem.Checked = false;
-            dataHandler.GenerateTSC();
+            TSCComparer.TSCMode = MapComparer.TSCType.CMP;
         }
 
         private void sMPToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            dataHandler.TSCType = false;
-            cMPToolStripMenuItem.Checked = false;
-            sMPToolStripMenuItem.Checked = true;
-            dataHandler.GenerateTSC();
+            TSCComparer.TSCMode = MapComparer.TSCType.SMP;
         }
+
+        private void updateTSCModeSwitches(object sender, EventArgs e)
+        {
+            //UNSURE simplified... not sure if it's worth it though...
+            sMPToolStripMenuItem.Checked = !(cMPToolStripMenuItem.Checked = (TSCComparer.TSCMode == MapComparer.TSCType.CMP));
+            //sMPToolStripMenuItem.Checked = TSCComparer.TSCMode == MapComparer.TSCType.SMP;
+            
+            if(TSCComparer.TSCModeLocked)
+                cMPToolStripMenuItem.Enabled = sMPToolStripMenuItem.Enabled = false;
+        }
+
+        #endregion
 
         private void ignoreIdenticalTilesToolStripMenuItem_CheckedChanged(object sender, EventArgs e)
         {
-            dataHandler.ignoreIdenticalTiles = ignoreIdenticalTilesToolStripMenuItem.Checked;
-            dataHandler.GenerateTSC();
+            TSCComparer.ignoreIdenticalTiles = ignoreIdenticalTilesToolStripMenuItem.Checked;
         }
 
         private void selectAllToolStripMenuItem_Click(object sender, EventArgs e)
@@ -147,7 +147,7 @@ namespace CMPGenerator
 
         private void regenerateTSCToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            dataHandler.GenerateTSC();
+            TSCComparer.GenerateTSC();
         }
 
         private void exportToolStripMenuItem_Click(object sender, EventArgs e)
@@ -155,7 +155,7 @@ namespace CMPGenerator
             SaveFileDialog sfd = new SaveFileDialog()
             {
                 Title = "Export TSC...",
-                Filter = "Text Files|*.txt|Text Script Files|*.tsc",
+                Filter = "Text Files (*.txt)|*.txt|Text Script Files (*.tsc)|*.tsc",
             };
             if(sfd.ShowDialog() == DialogResult.OK)
             {

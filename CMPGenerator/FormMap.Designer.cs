@@ -37,8 +37,8 @@
             this.applyTSCToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.viewChangeSize = new System.Windows.Forms.ToolStripMenuItem();
             this.viewToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.viewRangeEditor = new System.Windows.Forms.ToolStripMenuItem();
             this.viewTileset = new System.Windows.Forms.ToolStripMenuItem();
+            this.viewRangeEditor = new System.Windows.Forms.ToolStripMenuItem();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.menuStrip1.SuspendLayout();
             this.SuspendLayout();
@@ -53,7 +53,6 @@
             this.pictureBox1.Size = new System.Drawing.Size(284, 237);
             this.pictureBox1.TabIndex = 0;
             this.pictureBox1.TabStop = false;
-            this.pictureBox1.Paint += new System.Windows.Forms.PaintEventHandler(this.pictureBox1_Paint);
             this.pictureBox1.MouseClick += new System.Windows.Forms.MouseEventHandler(this.pictureBox1_MouseClick);
             // 
             // menuStrip1
@@ -105,7 +104,7 @@
             // 
             this.applyTSCToolStripMenuItem.Enabled = false;
             this.applyTSCToolStripMenuItem.Name = "applyTSCToolStripMenuItem";
-            this.applyTSCToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.applyTSCToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
             this.applyTSCToolStripMenuItem.Text = "Apply TSC";
             this.applyTSCToolStripMenuItem.Click += new System.EventHandler(this.applyTSCToolStripMenuItem_Click);
             // 
@@ -114,7 +113,7 @@
             this.viewChangeSize.Enabled = false;
             this.viewChangeSize.Name = "viewChangeSize";
             this.viewChangeSize.Size = new System.Drawing.Size(152, 22);
-            this.viewChangeSize.Text = "Change Size";
+            this.viewChangeSize.Text = "Resize Map";
             this.viewChangeSize.Click += new System.EventHandler(this.changeSizeToolStripMenuItem_Click);
             // 
             // viewToolStripMenuItem
@@ -126,21 +125,21 @@
             this.viewToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
             this.viewToolStripMenuItem.Text = "View";
             // 
-            // viewRangeEditor
-            // 
-            this.viewRangeEditor.CheckOnClick = true;
-            this.viewRangeEditor.Enabled = false;
-            this.viewRangeEditor.Name = "viewRangeEditor";
-            this.viewRangeEditor.Size = new System.Drawing.Size(152, 22);
-            this.viewRangeEditor.Text = "Range Editor";
-            // 
             // viewTileset
             // 
             this.viewTileset.CheckOnClick = true;
             this.viewTileset.Enabled = false;
             this.viewTileset.Name = "viewTileset";
-            this.viewTileset.Size = new System.Drawing.Size(152, 22);
+            this.viewTileset.Size = new System.Drawing.Size(141, 22);
             this.viewTileset.Text = "Tileset";
+            // 
+            // viewRangeEditor
+            // 
+            this.viewRangeEditor.CheckOnClick = true;
+            this.viewRangeEditor.Enabled = false;
+            this.viewRangeEditor.Name = "viewRangeEditor";
+            this.viewRangeEditor.Size = new System.Drawing.Size(141, 22);
+            this.viewRangeEditor.Text = "Range Editor";
             // 
             // FormMap
             // 

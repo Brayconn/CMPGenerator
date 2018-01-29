@@ -8,9 +8,6 @@ namespace CMPGenerator
 {
     static class Program
     {
-        public static DataHandler dh { get; set; }
-        public static FormMain fm { get; set; }
-
         /// <summary>
         /// The main entry point for the application.
         /// </summary>
@@ -19,11 +16,7 @@ namespace CMPGenerator
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
-
-            dh = new DataHandler();
-            fm = new FormMain(dh);
-
-            Application.Run(fm);
+            Application.Run(new FormMain());
         }
     }
 }

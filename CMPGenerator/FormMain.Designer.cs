@@ -131,7 +131,7 @@
             // selectAllToolStripMenuItem
             // 
             this.selectAllToolStripMenuItem.Name = "selectAllToolStripMenuItem";
-            this.selectAllToolStripMenuItem.Size = new System.Drawing.Size(152, 22);
+            this.selectAllToolStripMenuItem.Size = new System.Drawing.Size(122, 22);
             this.selectAllToolStripMenuItem.Text = "Select All";
             this.selectAllToolStripMenuItem.Click += new System.EventHandler(this.selectAllToolStripMenuItem_Click);
             // 
@@ -148,14 +148,14 @@
             // 
             this.viewMap1.CheckOnClick = true;
             this.viewMap1.Name = "viewMap1";
-            this.viewMap1.Size = new System.Drawing.Size(152, 22);
+            this.viewMap1.Size = new System.Drawing.Size(107, 22);
             this.viewMap1.Text = "Map 1";
             // 
             // viewMap2
             // 
             this.viewMap2.CheckOnClick = true;
             this.viewMap2.Name = "viewMap2";
-            this.viewMap2.Size = new System.Drawing.Size(152, 22);
+            this.viewMap2.Size = new System.Drawing.Size(107, 22);
             this.viewMap2.Text = "Map 2";
             // 
             // optionsToolStripMenuItem
@@ -196,7 +196,6 @@
             // cMPToolStripMenuItem
             // 
             this.cMPToolStripMenuItem.Checked = true;
-            this.cMPToolStripMenuItem.CheckOnClick = true;
             this.cMPToolStripMenuItem.CheckState = System.Windows.Forms.CheckState.Checked;
             this.cMPToolStripMenuItem.Name = "cMPToolStripMenuItem";
             this.cMPToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
@@ -205,7 +204,6 @@
             // 
             // sMPToolStripMenuItem
             // 
-            this.sMPToolStripMenuItem.CheckOnClick = true;
             this.sMPToolStripMenuItem.Name = "sMPToolStripMenuItem";
             this.sMPToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
             this.sMPToolStripMenuItem.Text = "<SMP";
@@ -231,8 +229,7 @@
             this.Controls.Add(this.menuStrip1);
             this.DoubleBuffered = true;
             this.Name = "FormMain";
-            this.Text = "CMPGenerator Main Window";
-            this.Load += new System.EventHandler(this.FormMain_Load);
+            this.Text = "CMPGenerator";
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
             this.ResumeLayout(false);

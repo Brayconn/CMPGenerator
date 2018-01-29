@@ -12,66 +12,112 @@ namespace CMPGenerator
 {
     public partial class FormTileset : Form
     {
-        private DataHandler.Tileset tileset { get; set; }
+        private MapComparer.Tileset tileset { get; set; }
 
-        public FormTileset()
+        public FormTileset(MapComparer.Tileset tileset)
         {
+            this.tileset = tileset;
+            tileset.TilesetLoaded += TilesetLoaded;
+            
             InitializeComponent();
+
+            tileset.SelectedTileChanged += delegate
+            {
+                selectNullTileToolStripMenuItem.Checked = (tileset.selectedTile == null);
+                DrawTileset();
+            };
         }
 
-        public void FileLoaded(object sender, DataHandler.FileLoadedEventArgs e)
+        private void TilesetLoaded(object sender, EventArgs e)
         {
-            tileset = e.map.tileset;           
+            if (pictureBox1.Image == null && tileset != null)
+            {
+                DrawTileset();
+
+                //Sets the window as big as the map, or as big as the screen if that would cuase it to go offscreen
+                var monitor = Screen.FromControl(this);
+                Height = Math.Min(pictureBox1.Image.Height + 66, monitor.Bounds.Height - Top);
+                Width = Math.Min(pictureBox1.Image.Width + 16, monitor.Bounds.Width - Left);
+
+                pictureBox1.Invalidate();
+            }
+            else
+                DrawTileset();
         }
 
-        private void DrawMap()
+        private void DrawTileset()
         {
             Bitmap b = new Bitmap(tileset.image);
-            using (Graphics g = Graphics.FromImage(b))
+            if (tileset.selectedTile != null)
             {
+                //Draw the selected tile thingy
+                using (Graphics g = Graphics.FromImage(b))
+                {
+                    int y = tileset.selectedTile.Value / (tileset.image.Width / tileset.tileSize);
+                    int x = tileset.selectedTile.Value - ((tileset.image.Width / tileset.tileSize) * y);
 
-                int y = tileset.selectedTile / tileset.width;
-                int x = tileset.selectedTile - (tileset.width * y);
-
-                g.DrawRectangle(new Pen(Color.White, 1), x * 16, y * 16, 16, 16);
+                    g.DrawRectangle(new Pen(Color.White, 1),
+                        x * tileset.tileSize,
+                        y * tileset.tileSize,
+                        tileset.tileSize,
+                        tileset.tileSize);
+                }
             }
             if (pictureBox1.Image != null)
                 pictureBox1.Image.Dispose();
             pictureBox1.Image = b;
             pictureBox1.Refresh();
         }
-        private void pictureBox1_Paint(object sender, PaintEventArgs e)
+
+        private void selectNullTileToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            if (pictureBox1.Image == null && tileset != null)
+            if (!selectNullTileToolStripMenuItem.Checked)
             {
-                DrawMap();
-                
-                //Sets the window as big as the map, or as big as the screen if that would cuase it to go offscreen
-                var monitor = Screen.FromControl(this);
-                Height = Math.Min(pictureBox1.Image.Height + 39, monitor.Bounds.Height - Top);
-                Width = Math.Min(pictureBox1.Image.Width + 16, monitor.Bounds.Width - Left);
-
-                pictureBox1.Invalidate();
+                tileset.selectedTile = null;
             }
-        }
-
-        private void pictureBox1_MouseHover(object sender, EventArgs e)
-        {
-            //TODO maybe add a hover thingy here?
         }
 
         private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
         {
-            //TODO use this and MouseUnClick to implement multiselect
-            int x = e.X / 16;
-            int y = e.Y / 16;
+            int x = e.X / tileset.tileSize;
+            int y = e.Y / tileset.tileSize;
 
-            if (x <= tileset.width && y <= tileset.height)
+            if (x <= 16 && y <= 16)//All tilesets have 16^2 tiles on them
             {             
-                tileset.selectedTile =(byte)(x + y*(tileset.width));
-                DrawMap();
-                //pictureBox1.Refresh();
+                tileset.selectedTile = (byte)(x + y*16);
             }
+        }
+
+        private void openToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            OpenFileDialog ofd = new OpenFileDialog()
+            {
+                Title = "Choose a tilset to load...",
+                Filter = "Bitmaps|*.bmp;*.pbm|All Files|*.*"
+            };
+            if(ofd.ShowDialog() == DialogResult.OK)
+            {
+                TilesetImporter ti = new TilesetImporter();
+                if(ti.ShowDialog() == DialogResult.OK)
+                    tileset.Load(ofd.FileName, ti.tileSize);
+            }
+        }
+
+
+        //bool drag = false; //TODO use these to implement multi select. will need to change tileset too
+        private void pictureBox1_MouseDown(object sender, MouseEventArgs e)
+        {
+
+        }
+
+        private void pictureBox1_MouseHover(object sender, EventArgs e)
+        {
+        
+        }
+
+        private void pictureBox1_MouseUp(object sender, MouseEventArgs e)
+        {
+
         }
     }
 }
