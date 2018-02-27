@@ -1,5 +1,3 @@
-# CMPGenerator
-
 Are you a Cave Story modder?
 Are you tired of generating long CMP/SMP scripts by hand?
 Have you always wished there was an easier way to generate CMP/SMP commands?

@@ -11,6 +11,7 @@ using System.Windows.Forms;
 //TODO make the anchors better
 namespace CMPGenerator
 {
+    //TODO refactor
     public partial class EditRange : Form
     {
         private static short Clamp(short val, short min, short max)

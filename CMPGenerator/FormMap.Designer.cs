@@ -28,6 +28,7 @@
         /// </summary>
         private void InitializeComponent()
         {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(FormMap));
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.menuStrip1 = new System.Windows.Forms.MenuStrip();
             this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -104,7 +105,7 @@
             // 
             this.applyTSCToolStripMenuItem.Enabled = false;
             this.applyTSCToolStripMenuItem.Name = "applyTSCToolStripMenuItem";
-            this.applyTSCToolStripMenuItem.Size = new System.Drawing.Size(138, 22);
+            this.applyTSCToolStripMenuItem.Size = new System.Drawing.Size(133, 22);
             this.applyTSCToolStripMenuItem.Text = "Apply TSC";
             this.applyTSCToolStripMenuItem.Click += new System.EventHandler(this.applyTSCToolStripMenuItem_Click);
             // 
@@ -112,7 +113,7 @@
             // 
             this.viewChangeSize.Enabled = false;
             this.viewChangeSize.Name = "viewChangeSize";
-            this.viewChangeSize.Size = new System.Drawing.Size(152, 22);
+            this.viewChangeSize.Size = new System.Drawing.Size(133, 22);
             this.viewChangeSize.Text = "Resize Map";
             this.viewChangeSize.Click += new System.EventHandler(this.changeSizeToolStripMenuItem_Click);
             // 
@@ -149,6 +150,7 @@
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.menuStrip1);
             this.DoubleBuffered = true;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
             this.Name = "FormMap";
             this.Text = "FormMap";
