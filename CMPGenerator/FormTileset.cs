@@ -28,7 +28,7 @@ namespace CMPGenerator
             };
         }
 
-        private void TilesetLoaded(object sender, EventArgs e)
+        private void TilesetLoaded()
         {
             if (pictureBox1.Image == null && tileset != null)
             {

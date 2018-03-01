@@ -129,7 +129,7 @@ namespace CMPGenerator
 
             #region Range stuff
 
-            public event EventHandler RangeUpdated = new EventHandler((o, e) => { });
+            public event Action RangeUpdated = new Action(delegate { });
             
             //TODO review these setting equations. they wrok, but I think they're being a bit janky at times...
             private short _xOffset = 0;
@@ -144,7 +144,7 @@ namespace CMPGenerator
                     if(xOffset != value && value < width)
                     {
                         _xRange = ((_xOffset = value) + xRange > width) ? (short)(width - xOffset) : xRange;
-                        RangeUpdated(this, new EventArgs());
+                        RangeUpdated();
                     }
                 }
             }
@@ -160,7 +160,7 @@ namespace CMPGenerator
                     if (yOffset != value && value < height)
                     {
                         _yRange = ((_yOffset = value) + yRange > height) ? (short)(height - yOffset) : yRange;
-                        RangeUpdated(this, new EventArgs());
+                        RangeUpdated();
                     }
                 }
             }
@@ -177,7 +177,7 @@ namespace CMPGenerator
                     if (xRange != value && 0 < value && value <= width)
                     {
                         _xOffset = ((_xRange = value) + xOffset > width) ? (short)(width - xRange) : xOffset;
-                        RangeUpdated(this, new EventArgs());
+                        RangeUpdated();
                     }
                 }
             }
@@ -193,7 +193,7 @@ namespace CMPGenerator
                     if (yRange != value && 0 < value && value <= height)
                     {
                         _yOffset = ((_yRange = value) + yOffset > height) ? (short)(height - yRange) : yOffset;
-                        RangeUpdated(this, new EventArgs());
+                        RangeUpdated();
                     }
                 }
             }
@@ -205,7 +205,7 @@ namespace CMPGenerator
             public short width { get; private set; }
             public short height { get; private set; }
 
-            public event EventHandler MapResized = new EventHandler((o, e) => { });
+            public event Action MapResized = new Action(delegate{ });
             public enum ResizeMode
             {
                 OutOfBounds,
@@ -266,7 +266,7 @@ namespace CMPGenerator
                     _xRange = (xOffset + xRange > width) ? (short)(width - xOffset) : xRange;
                     _yRange = (yOffset + yRange > height) ? (short)(height - yOffset) : yRange;
 
-                    MapResized(this, new EventArgs());
+                    MapResized();
                 }
             }
 
@@ -285,6 +285,9 @@ namespace CMPGenerator
 
             public void ApplyTSC(string tsc)
             {
+                if ((tsc == null) ? tsc.Length > 0 : true)
+                    return;
+
                 /*this function supports four tsc commands. here's a rundown of all the regex groups they create:
                  *<FL+/<FL-:
                  * 0 = name (FL)
@@ -472,7 +475,7 @@ namespace CMPGenerator
         }
         public class Tileset
         {
-            public event EventHandler SelectedTileChanged = new EventHandler((o, e) => { });
+            public event Action SelectedTileChanged = new Action(delegate { });
             private byte? _selectedTile = 0;
             public byte? selectedTile
             {
@@ -485,7 +488,7 @@ namespace CMPGenerator
                     if(_selectedTile != value)
                     {
                         _selectedTile = value;
-                        SelectedTileChanged(this, new EventArgs());
+                        SelectedTileChanged();
                     }
                 }
             }
@@ -500,7 +503,7 @@ namespace CMPGenerator
                     g.FillRectangle(Brushes.Black, 0, 0, 256, 256);
             }
             
-            public event EventHandler TilesetLoaded = new EventHandler((o, e) => {});
+            public event Action TilesetLoaded = new Action(delegate { });
             public bool Load(string image, int tileSize = 16)
             {
                 return Load(new Bitmap(image), tileSize);
@@ -544,7 +547,7 @@ namespace CMPGenerator
                         0);
                 }
 
-                TilesetLoaded(this, new EventArgs());
+                TilesetLoaded();
                 return true;
             }
         }

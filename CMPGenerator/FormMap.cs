@@ -39,7 +39,7 @@ namespace CMPGenerator
             (map.data as INotifyCollectionChanged).CollectionChanged += Data_CollectionChanged;
             map.tileset.TilesetLoaded += DrawMap;
             map.RangeUpdated += DrawMap;
-            map.MapResized += DrawMap;
+            map.MapResized += InitializeMap;
             
             tileset = new FormTileset(map.tileset);
             tileset.Owner = this;
@@ -53,42 +53,11 @@ namespace CMPGenerator
             pictureBox1.MouseWheel += PictureBox1_MouseWheel;
         }
 
-        private void Data_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
-        {
-            if(e.Action == NotifyCollectionChangedAction.Replace)
-            {
-                int y = e.OldStartingIndex / map.width;
-                int x = e.OldStartingIndex - (y * map.width);
-                DrawTile(x, y);
-            }
-            else
-            {
-                //TODO maybe use a for loop and drawtile? maybe that would let me get rid of initializeMap?
-                InitializeMap();
-            }
-            DrawMap();
-        }
-
-        private void PictureBox1_MouseWheel(object sender, MouseEventArgs e)
-        {
-            if(mapLoaded && ModifierKeys == Keys.Control)
-            { 
-                //TODO memory leak?
-                //float newZoom = e.Delta / (float)(Math.Abs(e.Delta) * 4);
-                float newZoom = (e.Delta >= 0) ? (float)0.25 : (float)-0.25;
-                if (zoomLevel + newZoom > 0 && zoomLevel + newZoom <= 5)
-                {
-                    zoomLevel += newZoom;
-                    DrawMap();
-                }
-            }
-        }
-
         public void MapLoaded(object sender, MapComparer.Map.MapLoadedEventArgs e)
         {
             this.Text = $"Map {(master ? "1" : "2")}: {Path.GetFileName(e.path)}";
             saveAsToolStripMenuItem.Enabled = true;
-            mapLoaded = true;
+            
             
             viewRangeEditor.Enabled = true;
             viewTileset.Enabled = true;
@@ -99,25 +68,37 @@ namespace CMPGenerator
 
             viewChangeSize.Enabled = true;
 
-            if (mapImage == null && map.tileset.image != null)
-            {
-                InitializeMap();
-                DrawMap();
+            InitializeMap();
 
+            if (!mapLoaded)
+            {
                 //Sets the window as big as the map, or as big as the screen if that would cuase it to go offscreen
                 Screen monitor = Screen.FromControl(this);
-                Height = Math.Min(pictureBox1.Image.Height + 63, monitor.Bounds.Height - Top);
-                Width = Math.Min(pictureBox1.Image.Width + 16, monitor.Bounds.Width - Left);
+                this.Height = Math.Min(pictureBox1.Image.Height + 63, monitor.Bounds.Height - Top);
+                this.Width = Math.Min(pictureBox1.Image.Width + 16, monitor.Bounds.Width - Left);
+            }
+            mapLoaded = true;
+        }
 
-                pictureBox1.Invalidate();
-                //pictureBox1.Refresh();
+        private void Data_CollectionChanged(object sender, NotifyCollectionChangedEventArgs e)
+        {
+            if (e.Action == NotifyCollectionChangedAction.Replace)
+            {
+                int y = e.OldStartingIndex / map.width;
+                int x = e.OldStartingIndex - (y * map.width);
+                DrawTile(x, y);
+                DrawMap();
             }
             else
             {
+                //TODO maybe use a for loop and drawtile? maybe that would let me get rid of initializeMap?
                 InitializeMap();
-                DrawMap();
             }
         }
+
+        #region Map Drawing
+
+        //TODO this might still need refactoring since I think there's a memory leak somewhere
 
         private Bitmap DrawRange(Bitmap input)
         {
@@ -133,28 +114,31 @@ namespace CMPGenerator
             }
             return b;
         }
-
-        //TODO refactor these five functions
-        private void DrawMap(object sender, EventArgs e)
-        {
-            if(map.Loaded)
-            {
-                InitializeMap();
-                DrawMap();
-            }
-        }
+        
         private void DrawMap()
         {
-            if (pictureBox1.Image != null)
-                pictureBox1.Image.Dispose();
-            pictureBox1.Image = new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel));
-            pictureBox1.Refresh();
+            if (map.Loaded)
+            {
+                if (mapImage == null)
+                    InitializeMap();
+                
+                if(pictureBox1.Image != null)
+                    pictureBox1.Image.Dispose();
+                pictureBox1.Image = new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel));
+                pictureBox1.Invalidate();
+            }
+        }
+        
+        private void UpdatePictureBoxSize()
+        {
+            pictureBox1.Width = pictureBox1.Image.Width;
+            pictureBox1.Height = pictureBox1.Image.Height;
         }
 
         private void InitializeMap()
         {
             mapImage = new Bitmap(map.width * map.tileset.tileSize, map.height * map.tileset.tileSize);
-
+            
             for (int i = 0; i < map.height; i++)
             {
                 for (int _i = 0; _i < map.width; _i++)
@@ -162,46 +146,101 @@ namespace CMPGenerator
                     DrawTile(_i, i);
                 }
             }
+
+            DrawMap();
+            UpdatePictureBoxSize();         
         }
-        
+
         private void DrawTile(int mapTileXCoord, int mapTileYCoord)
         {
-            if (mapImage == null)
+            if (map.Loaded)
             {
-                InitializeMap();
-            }
-            else
-            {
-                Bitmap tileToDraw = new Bitmap(map.tileset.tileSize, map.tileset.tileSize);
-                using (Graphics g = Graphics.FromImage(tileToDraw))
-                    g.FillRectangle(new SolidBrush(pictureBox1.BackColor), 0, 0, tileToDraw.Width, tileToDraw.Height);
-
-                byte? tile = map.data[(mapTileYCoord * map.width) + mapTileXCoord];
-                if (tile != null)
+                if (mapImage == null)
                 {
-                    int tilesetTileYOffset = tile.Value / (map.tileset.image.Width / map.tileset.tileSize);
-                    int tilesetTileXOffset = tile.Value - ((map.tileset.image.Width / map.tileset.tileSize) * tilesetTileYOffset);
-
-                    tileToDraw = map.tileset.image.Clone(
-                            new Rectangle(
-                                tilesetTileXOffset * map.tileset.tileSize,
-                                tilesetTileYOffset * map.tileset.tileSize,
-                                map.tileset.tileSize,
-                                map.tileset.tileSize),
-                            PixelFormat.DontCare //TODO setting this to 4bpp is causing issues for some reason...
-                            );
+                    InitializeMap();
                 }
-
-                using (Graphics g = Graphics.FromImage(mapImage))
+                else
                 {
-                    g.DrawImage(tileToDraw,
-                        mapTileXCoord * map.tileset.tileSize,
-                        mapTileYCoord * map.tileset.tileSize
-                        );
+                    Bitmap tileToDraw = new Bitmap(map.tileset.tileSize, map.tileset.tileSize);
+                    using (Graphics g = Graphics.FromImage(tileToDraw))
+                        g.FillRectangle(new SolidBrush(pictureBox1.BackColor), 0, 0, tileToDraw.Width, tileToDraw.Height);
+
+                    byte? tile = map.data[(mapTileYCoord * map.width) + mapTileXCoord];
+                    if (tile != null)
+                    {
+                        int tilesetTileYOffset = tile.Value / (map.tileset.image.Width / map.tileset.tileSize);
+                        int tilesetTileXOffset = tile.Value - ((map.tileset.image.Width / map.tileset.tileSize) * tilesetTileYOffset);
+
+                        tileToDraw = map.tileset.image.Clone(
+                                new Rectangle(
+                                    tilesetTileXOffset * map.tileset.tileSize,
+                                    tilesetTileYOffset * map.tileset.tileSize,
+                                    map.tileset.tileSize,
+                                    map.tileset.tileSize),
+                                PixelFormat.DontCare //TODO setting this to 4bpp is causing issues for some reason...
+                                );
+                    }
+
+                    using (Graphics g = Graphics.FromImage(mapImage))
+                    {
+                        g.DrawImage(tileToDraw,
+                            mapTileXCoord * map.tileset.tileSize,
+                            mapTileYCoord * map.tileset.tileSize
+                            );
+                    }
                 }
             }
         }
 
+        #endregion
+
+        #region Zoom
+
+        private void PictureBox1_MouseWheel(object sender, MouseEventArgs e)
+        {
+            if (mapLoaded && ModifierKeys == Keys.Control)
+            {
+                //TODO memory leak?
+                float newZoom = (e.Delta / SystemInformation.MouseWheelScrollDelta) * (float)0.25;
+                if (zoomLevel + newZoom > 0 && zoomLevel + newZoom <= 5)
+                {
+                    zoomLevel += newZoom;
+                    DrawMap();
+                    UpdatePictureBoxSize();
+                }
+            }
+        }
+
+        //thank based rain
+        private void FormMap_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (mapLoaded && ModifierKeys == Keys.Control)
+            {
+                //TODO memory leak?
+                float newZoom;
+                switch (e.KeyCode)
+                {
+                    case (Keys.Oemplus):
+                    case (Keys.Add):
+                        newZoom = (float)0.25;
+                        break;
+                    case (Keys.OemMinus):
+                    case (Keys.Subtract):
+                        newZoom = (float)-0.25;
+                        break;
+                    default:
+                        return;
+                }
+                if (zoomLevel + newZoom > 0 && zoomLevel + newZoom <= 5)
+                {
+                    zoomLevel += newZoom;
+                    DrawMap();
+                    UpdatePictureBoxSize();
+                }
+            }
+        }
+
+        #endregion
 
         //TODO remove this event and make it so you can click + drag
         private void pictureBox1_MouseClick(object sender, MouseEventArgs e)
@@ -262,7 +301,7 @@ namespace CMPGenerator
         private void applyTSCToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ApplyTSC at = new ApplyTSC();
-            if(at.ShowDialog() == DialogResult.OK && at.Tsc.Length >= 8) //8 is the length of an <FL+/<FL- command, which is the smallest one recognised.
+            if (at.ShowDialog() == DialogResult.OK && (at.Tsc != null) ? at.Tsc.Length >= 8 : false) //8 is the length of an <FL+/<FL- command, which is the smallest one recognised.
             {
                 map.ApplyTSC(at.Tsc);
             }
