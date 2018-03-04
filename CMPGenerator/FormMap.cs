@@ -26,7 +26,23 @@ namespace CMPGenerator
         private bool mapLoaded { get; set; }
         public MapComparer.Map map { get; }
         private Bitmap mapImage { get; set; } = null;
-        private float zoomLevel { get; set; } = 1;
+        private float _zoomLevel = 1;
+        private float zoomLevel
+        {
+            get
+            {
+                return _zoomLevel;
+            }
+            set
+            {
+                if (0 < value && value <= 5)
+                {
+                    _zoomLevel = value;
+                    if(mapLoaded)
+                        DrawMap();
+                }
+            }
+        }
         public bool master { get; }
 
         public FormMap(bool master) : this(master, new MapComparer.Map()) { }
@@ -98,8 +114,7 @@ namespace CMPGenerator
 
         #region Map Drawing
 
-        //TODO this might still need refactoring since I think there's a memory leak somewhere
-
+        //TODO I'm sure this has a memory leak
         private Bitmap DrawRange(Bitmap input)
         {
             Bitmap b = new Bitmap(input);
@@ -120,19 +135,21 @@ namespace CMPGenerator
             if (map.Loaded)
             {
                 if (mapImage == null)
+                {
                     InitializeMap();
-                
-                if(pictureBox1.Image != null)
-                    pictureBox1.Image.Dispose();
-                pictureBox1.Image = new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel));
-                pictureBox1.Invalidate();
+                }
+                else
+                {
+                    if (pictureBox1.Image != null)
+                        pictureBox1.Image.Dispose(); //TODO might have to redo stuff down here for that memory leak issue...
+                    pictureBox1.Image = new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel));
+
+                    GC.Collect(); //HACK still doesn't solve the core issue...
+                    GC.WaitForPendingFinalizers();
+
+                    pictureBox1.Invalidate();
+                }
             }
-        }
-        
-        private void UpdatePictureBoxSize()
-        {
-            pictureBox1.Width = pictureBox1.Image.Width;
-            pictureBox1.Height = pictureBox1.Image.Height;
         }
 
         private void InitializeMap()
@@ -147,8 +164,7 @@ namespace CMPGenerator
                 }
             }
 
-            DrawMap();
-            UpdatePictureBoxSize();         
+            DrawMap();      
         }
 
         private void DrawTile(int mapTileXCoord, int mapTileYCoord)
@@ -201,13 +217,7 @@ namespace CMPGenerator
             if (mapLoaded && ModifierKeys == Keys.Control)
             {
                 //TODO memory leak?
-                float newZoom = (e.Delta / SystemInformation.MouseWheelScrollDelta) * (float)0.25;
-                if (zoomLevel + newZoom > 0 && zoomLevel + newZoom <= 5)
-                {
-                    zoomLevel += newZoom;
-                    DrawMap();
-                    UpdatePictureBoxSize();
-                }
+                zoomLevel += (e.Delta / SystemInformation.MouseWheelScrollDelta) * (float)0.25;
             }
         }
 
@@ -231,12 +241,7 @@ namespace CMPGenerator
                     default:
                         return;
                 }
-                if (zoomLevel + newZoom > 0 && zoomLevel + newZoom <= 5)
-                {
-                    zoomLevel += newZoom;
-                    DrawMap();
-                    UpdatePictureBoxSize();
-                }
+                zoomLevel += newZoom;
             }
         }
 
@@ -249,7 +254,7 @@ namespace CMPGenerator
             int y = e.Y / (int)(map.tileset.tileSize * zoomLevel);
 
             //If the tile clicked is actually on the map, and the tile clicked would actually change to something different
-            if(((y * map.width) + x < map.data.Count) ? map.data[(y * map.width) + x] != map.tileset.selectedTile : false) //TODO review if this is needed
+            if((y * map.width) + x < map.data.Count && map.data[(y * map.width) + x] != map.tileset.selectedTile)
             {
                     map.data[(y * map.width) + x] = map.tileset.selectedTile;
             }
@@ -301,7 +306,7 @@ namespace CMPGenerator
         private void applyTSCToolStripMenuItem_Click(object sender, EventArgs e)
         {
             ApplyTSC at = new ApplyTSC();
-            if (at.ShowDialog() == DialogResult.OK && (at.Tsc != null) ? at.Tsc.Length >= 8 : false) //8 is the length of an <FL+/<FL- command, which is the smallest one recognised.
+            if (at.ShowDialog() == DialogResult.OK && at.Tsc != null && at.Tsc.Length >= 8) //8 is the length of an <FL+/<FL- command, which is the smallest one recognised.
             {
                 map.ApplyTSC(at.Tsc);
             }

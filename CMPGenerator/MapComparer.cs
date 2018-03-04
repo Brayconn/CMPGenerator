@@ -211,7 +211,7 @@ namespace CMPGenerator
                 OutOfBounds,
                 NullInsert
             }
-            public void Resize(short newWidth, short newHeight, ResizeMode mode)
+            public void Resize(short newWidth, short newHeight, ResizeMode mode) //TODO make 0 a valid size again
             {
                 if (newWidth != width || newHeight != height)
                 {
@@ -285,7 +285,7 @@ namespace CMPGenerator
 
             public void ApplyTSC(string tsc)
             {
-                if ((tsc == null) ? tsc.Length > 0 : true)
+                if (tsc == null || tsc.Length == 0)
                     return;
 
                 /*this function supports four tsc commands. here's a rundown of all the regex groups they create:
@@ -399,7 +399,7 @@ namespace CMPGenerator
             public event EventHandler<MapLoadedEventArgs> MapLoaded = new EventHandler<MapLoadedEventArgs>((o,e) => { });
             public bool Load(string mapPath, string tilesetPath)
             {
-                return tileset.Load(tilesetPath) ? this.Load(mapPath, true, true, OverwriteMode.All) : false;
+                return tileset.Load(tilesetPath) && this.Load(mapPath, true, true, OverwriteMode.All);
             }
             public bool Load(string mapPath, bool resize, bool preserveCoords, OverwriteMode overwriteMode)
             {
@@ -522,7 +522,7 @@ namespace CMPGenerator
                     error = $"tall! {image.Height} > {size}.";
 
                 //HACK don't use windows.forms
-                if ((error.Length > 0) ? MessageBox.Show($"The provided bitmap is too {error}\nWould you like to load the top left {size}x{size} pixels anyways?", "Load Tileset", MessageBoxButtons.YesNo) != DialogResult.Yes : false)
+                if (error.Length > 0 && MessageBox.Show($"The provided bitmap is too {error}\nWould you like to load the top left {size}x{size} pixels anyways?", "Load Tileset", MessageBoxButtons.YesNo) != DialogResult.Yes)
                     return false;
 
                 if (tileSize != this.tileSize)
@@ -687,7 +687,7 @@ namespace CMPGenerator
                         break;
                 }
             }
-            else if((TSC.ContainsKey(tiley)) ? TSC[tiley].ContainsKey(tilex) : false)
+            else if(TSC.ContainsKey(tiley) && TSC[tiley].ContainsKey(tilex))
             {
                 TSC[tiley].Remove(tilex);
                 if (TSC[tiley].Count == 0)

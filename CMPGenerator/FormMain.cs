@@ -81,7 +81,7 @@ namespace CMPGenerator
         private void openMap2_Click(object sender, EventArgs e)
         {
             Tuple<string, string> mapAndTilesetPaths = ShowOpenMapUI();
-            if ((mapAndTilesetPaths != null) ? Map2.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2) : false)
+            if (mapAndTilesetPaths != null && Map2.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2))
             {
                 viewMap2.Checked = true;
             }

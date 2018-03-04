@@ -82,7 +82,7 @@ namespace CMPGenerator
             int x = e.X / tileset.tileSize;
             int y = e.Y / tileset.tileSize;
 
-            if (x <= 16 && y <= 16)//All tilesets have 16^2 tiles on them
+            if (x <= 16 && y <= 16) //All tilesets have 16^2 tiles on them
             {             
                 tileset.selectedTile = (byte)(x + y*16);
             }
