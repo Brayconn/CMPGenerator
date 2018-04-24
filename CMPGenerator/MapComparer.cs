@@ -68,11 +68,27 @@ namespace CMPGenerator
             CMP,
             SMP
         }
-        public bool TSCModeLocked { get; private set; } = false;
-        public event EventHandler TSCModeUpdated = new EventHandler((o, e) => { });
+        public event Action TSCModeLockChanged = new Action(delegate { }); //tfw u run out of names D;
+        private bool tscmodelocked = false;
+        public bool TSCModeLocked
+        {
+            get
+            {
+                return tscmodelocked;
+            }
+            private set
+            {
+                if(tscmodelocked != value)
+                {
+                    tscmodelocked = value;
+                    TSCModeLockChanged();
+                }
+            }
+        }
+        public event Action TSCModeChanged = new Action(delegate { });
         private TSCType tscmode = TSCType.CMP;
         /// <summary>
-        /// What command to use for TSC generation.
+        /// What command to use when generating TSC.
         /// </summary>
         public TSCType TSCMode
         {
@@ -85,7 +101,7 @@ namespace CMPGenerator
                 if (!TSCModeLocked && tscmode != value)
                 {
                     tscmode = value;
-                    TSCModeUpdated(this, new EventArgs());
+                    TSCModeChanged();
                     if (map1.Loaded && map2.Loaded)
                         GenerateTSC();
                 }
@@ -131,7 +147,7 @@ namespace CMPGenerator
 
             public event Action RangeUpdated = new Action(delegate { });
             
-            //TODO review these setting equations. they wrok, but I think they're being a bit janky at times...
+            //TODO review these setting equations. they work, but I think they're being a bit janky at times...
             private short _xOffset = 0;
             public short xOffset
             {
@@ -174,7 +190,7 @@ namespace CMPGenerator
                 }
                 set
                 {
-                    if (xRange != value && 0 < value && value <= width)
+                    if (xRange != value && 0 <= value && value <= width)
                     {
                         _xOffset = ((_xRange = value) + xOffset > width) ? (short)(width - xRange) : xOffset;
                         RangeUpdated();
@@ -190,7 +206,7 @@ namespace CMPGenerator
                 }
                 set
                 {
-                    if (yRange != value && 0 < value && value <= height)
+                    if (yRange != value && 0 <= value && value <= height)
                     {
                         _yOffset = ((_yRange = value) + yOffset > height) ? (short)(height - yRange) : yOffset;
                         RangeUpdated();
@@ -205,91 +221,134 @@ namespace CMPGenerator
             public short width { get; private set; }
             public short height { get; private set; }
 
-            public event Action MapResized = new Action(delegate{ });
+            /// <summary>
+            /// Contains valid methods to resize a map
+            /// </summary>
             public enum ResizeMode
             {
                 OutOfBounds,
                 NullInsert
             }
-            public void Resize(short newWidth, short newHeight, ResizeMode mode) //TODO make 0 a valid size again
+            
+            /// <summary>
+            /// Resizes the map using the given method
+            /// </summary>
+            /// <param name="newWidth"></param>
+            /// <param name="newHeight"></param>
+            /// <param name="mode">Resize method to use</param>
+            public void Resize(short newWidth, short newHeight, ResizeMode mode)
             {
-                if (newWidth != width || newHeight != height)
+                if (newWidth == width && newHeight == height)
+                    return;
+
+                switch (mode)
                 {
-                    newWidth = (newWidth <= 0) ? (short)1 : newWidth;
-                    newHeight = (newHeight <= 0) ? (short)1 : newHeight;
+                    case (ResizeMode.NullInsert):
+                        NullInsertResize(newWidth, newHeight);
+                        break;
+                    case (ResizeMode.OutOfBounds):
+                        OOBResize(newWidth, newHeight);
+                        break;
+                }
 
-                    using (ObservableCollectionEx<byte?> iDisabled = data.DisableNotifications())
+                FinalizeMapResize();
+            }
+
+            /// <summary>
+            /// Resizes the map using the OOB flag method
+            /// </summary>
+            /// <param name="newWidth"></param>
+            /// <param name="newHeight"></param>
+            private void OOBResize(short newWidth, short newHeight)
+            {
+                using (ObservableCollectionEx<byte?> safeMapData = this.data.DisableNotifications())
+                    while (safeMapData.Count < newWidth * newHeight)
+                        safeMapData.Add(null);
+                this.width = newWidth;
+                this.height = newHeight;
+            }
+
+            /// <summary>
+            /// Resizes the map using the Null Insert method
+            /// </summary>
+            /// <param name="newWidth"></param>
+            /// <param name="newHeight"></param>
+            private void NullInsertResize(short newWidth, short newHeight)
+            {
+                using (ObservableCollectionEx<byte?> safeMapData = this.data.DisableNotifications())
+                {
+                    //TODO merge a bunch of stuff in here
+                    if (newWidth > width)
                     {
-                        switch (mode)
-                        {
-                            //TODO merge a bunch of stuff in here
-                            case (ResizeMode.NullInsert):
-                                //rip add/remove range ;(
-                                if (newWidth > width)
-                                {
-                                    for (int i = height - 1; i >= 0; i--)
-                                        for (int _i = width; _i < newWidth; _i++)
-                                            iDisabled.Insert(width + (i * width), null);
-                                }
-                                else if (newWidth < width)
-                                {
-                                    for (int i = height - 1; i >= 0; i--)
-                                        for (int _i = width; _i > newWidth; _i--)
-                                            iDisabled.RemoveAt((i * width) + newWidth);
-                                }
-                                this.width = newWidth;
-
-                                if (newHeight > height)
-                                {
-                                    for (int i = 0; i < width * (newHeight - height); i++)
-                                        if ((height * width) + i < iDisabled.Count)
-                                            iDisabled[(height*width) + i] = null;
-                                        else
-                                            iDisabled.Insert((height*width) + i, null);
-                                }
-                                else if (newHeight < height)
-                                {
-                                    while (iDisabled.Count > newHeight * newWidth)
-                                        iDisabled.RemoveAt(iDisabled.Count - 1);
-                                }
-                                this.height = newHeight;
-                                break;
-
-                            case (ResizeMode.OutOfBounds):
-                                while (iDisabled.Count < newWidth * newHeight)
-                                    iDisabled.Add(null);
-                                this.width = newWidth;
-                                this.height = newHeight;
-                                break;
-                        }
+                        for (int i = height - 1; i >= 0; i--)
+                            for (int _i = width; _i < newWidth; _i++)
+                                safeMapData.Insert(width + (i * width), null);
                     }
-                    _xRange = (xOffset + xRange > width) ? (short)(width - xOffset) : xRange;
-                    _yRange = (yOffset + yRange > height) ? (short)(height - yOffset) : yRange;
+                    else if (newWidth < width)
+                    {
+                        for (int i = height - 1; i >= 0; i--)
+                            for (int _i = width; _i > newWidth; _i--)
+                                safeMapData.RemoveAt((i * width) + newWidth);
+                    }
+                    this.width = newWidth;
 
-                    MapResized();
+                    if (newHeight > height)
+                    {
+                        for (int i = 0; i < width * (newHeight - height); i++)
+                            if ((height * width) + i < safeMapData.Count)
+                                safeMapData[(height * width) + i] = null;
+                            else
+                                safeMapData.Insert((height * width) + i, null);
+                    }
+                    else if (newHeight < height)
+                    {
+                        while (safeMapData.Count > newHeight * newWidth)
+                            safeMapData.RemoveAt(safeMapData.Count - 1);
+                    }
+                    this.height = newHeight;
                 }
             }
+            
+            /// <summary>
+            /// Updates the ranges to be within the map's bounderies and triggers the "MapResized" event
+            /// </summary>
+            private void FinalizeMapResize()
+            {
+                //This bypasses the triggering of the "RangeUpdated" event, since that could mess things up if triggered before the map is done being resized (see ApplyTSC())
+                _xRange = (xOffset + xRange > width) ? (short)(width - xOffset) : xRange;
+                _yRange = (yOffset + yRange > height) ? (short)(height - yOffset) : yRange;
+                MapResized();
+            }
+
+            public event Action MapResized = new Action(delegate { });
 
             #endregion
 
             public ObservableCollectionEx<byte?> data { get; private set; } = new ObservableCollectionEx<byte?>();
 
+            /// <summary>
+            /// Parses a string to get an int value the same way Cave Story does it.
+            /// </summary>
+            /// <param name="input">String to parse</param>
+            /// <returns>Parsed value, Null if an error occurs</returns>
             private static int? GetTSCValue(string input)
             {
                 int output;
-                if (int.TryParse(string.Join(null, Encoding.ASCII.GetBytes(input).Select(v => v -= 0x30)), out output))
-                    return output;
-                else
-                    return null;
+                return (int.TryParse(string.Join(null, Encoding.ASCII.GetBytes(input).Select(v => v -= 0x30)), out output)) ? (int?)output : null;
             }
 
+            /// <summary>
+            /// Applies the given TSC to the map. Supports FL+/- (where it would change the map size), and C/SMP.
+            /// </summary>
+            /// <param name="tsc">TSC to parse.</param>
             public void ApplyTSC(string tsc)
             {
                 if (tsc == null || tsc.Length == 0)
                     return;
 
-                /*this function supports four tsc commands. here's a rundown of all the regex groups they create:
-                 *<FL+/<FL-:
+                /*
+                 * this function supports four tsc commands. here's a rundown of all the regex groups they create:
+                 * <FL+/<FL-:
                  * 0 = name (FL)
                  * 1 = mode (+ or -)
                  * 2 = flag (4 characters)
@@ -303,63 +362,76 @@ namespace CMPGenerator
                  * 0 = name (CMP)
                  * 1 = x (4 characters)
                  * 2 = y (4 characters)
-                 * 3 = tile (4 characters)
-                 * 
+                 * 3 = tile (4 characters) 
                  */
-                //rip branch reset @"<(?|(?:(FL)(\+|-)(.{4}))|(?:(SMP)(.{4}).(.{4}))|(?:(CMP)(.{4}).(.{4}).(.{4})))"
+                //rip branch reset, would've been much cleaner: @"<(?|(?:(FL)(\+|-)(.{4}))|(?:(SMP)(.{4}).(.{4}))|(?:(CMP)(.{4}).(.{4}).(.{4})))"
                 Regex r = new Regex(@"<(?:(?:(?<name>FL)(?<mode>\+|-)(?<flag>.{4}))|(?:(?<name>SMP)(?<x>.{4}).(?<y>.{4}))|(?:(?<name>CMP)(?<x>.{4}).(?<y>.{4}).(?<tile>.{4})))");
                 MatchCollection parsed = r.Matches(tsc);
                 for (int i = 0; i < parsed.Count; i++)
                 {
                     if (parsed[i].Groups["name"].Value.StartsWith("FL", true, null))
                     {
-                        int? value = GetTSCValue(parsed[i].Groups["flag"].Value);
-                        if (value != null && (parsed[i].Groups["mode"].Value == "+" || parsed[i].Groups["mode"].Value == "-"))
-                        {
-                            short x = this.width;
-                            short y = this.height;
+                        int? flag = GetTSCValue(parsed[i].Groups["flag"].Value);
+                        if (flag == null || (parsed[i].Groups["mode"].Value != "+" && parsed[i].Groups["mode"].Value != "-"))
+                            continue;
 
-                            //TODO merge redundant code (make function?)
-                            if (16176 <= value && value <= 16191) //Between @176 and @191 (inclusive) = width/x
-                            {
-                                BitArray b = new BitArray(BitConverter.GetBytes(x));
-                                b[(int)value - 16176] = parsed[i].Groups["mode"].Value == "+";
-                                int[] s = new int[1];
-                                b.CopyTo(s, 0);
-                                x = (short)s[0];
-                            }
-                            else if (16192 <= value && value <= 16207) //Between @192 and @207 (inclusive) = height/y
-                            {
-                                BitArray b = new BitArray(BitConverter.GetBytes(y));
-                                b[(int)value - 16192] = parsed[i].Groups["mode"].Value == "+";
-                                int[] s = new int[1];
-                                b.CopyTo(s, 0);
-                                y = (short)s[0];
-                            }
-                            else
-                                break;
-                            
-                            Resize(x, y, ResizeMode.OutOfBounds);
+                        short x = this.width;
+                        short y = this.height;
+
+                        //TODO merge redundant code (make function?)
+                        if (16176 <= flag && flag <= 16191) //Between @176 and @191 (inclusive) = width/x
+                        {
+                            BitArray b = new BitArray(BitConverter.GetBytes(x));
+                            b[(int)flag - 16176] = parsed[i].Groups["mode"].Value == "+";
+                            int[] s = new int[1];
+                            b.CopyTo(s, 0);
+                            x = (short)s[0];
                         }
+                        else if (16192 <= flag && flag <= 16207) //Between @192 and @207 (inclusive) = height/y
+                        {
+                            BitArray b = new BitArray(BitConverter.GetBytes(y));
+                            b[(int)flag - 16192] = parsed[i].Groups["mode"].Value == "+";
+                            int[] s = new int[1];
+                            b.CopyTo(s, 0);
+                            y = (short)s[0];
+                        }
+                        else
+                            continue;
+                        
+                        OOBResize(x, y);
                     }
-                    else if (parsed[i].Groups["name"].Value.StartsWith("CMP", true, null) || parsed[i].Groups[0].Value.StartsWith("SMP", true, null))
+                    else //if (parsed[i].Groups["name"].Value.StartsWith("CMP", true, null) || parsed[i].Groups[0].Value.StartsWith("SMP", true, null))
                     {
                         int? x = GetTSCValue(parsed[i].Groups["x"].Value);
                         int? y = GetTSCValue(parsed[i].Groups["y"].Value);
-                        switch (parsed[i].Groups["name"].Value.ToLower())
+                        if (x == null || y == null)
+                            continue;
+
+                        using (ObservableCollectionEx<byte?> safeMapData = this.data.DisableNotifications())
                         {
-                            case ("smp"):
-                                data[((int)y * width) + (int)x]--;
-                                break;
-                            case ("cmp"):
-                                int? tile = GetTSCValue(parsed[i].Groups["tile"].Value);
-                                data[((int)y * width) + (int)x] = (byte)tile; //TODO test this
-                                break;
+                            switch (parsed[i].Groups["name"].Value.ToLower())
+                            {
+                                case ("smp"):
+                                    safeMapData[((int)y * width) + (int)x]--;
+                                    break;
+                                case ("cmp"):
+                                    int? tile = GetTSCValue(parsed[i].Groups["tile"].Value);
+                                    if (tile == null)
+                                        continue;
+
+                                    safeMapData[((int)y * width) + (int)x] = (byte)tile;
+                                    break;
+                            }
                         }
                     }
                 }
+                FinalizeMapResize();
             }
 
+            /// <summary>
+            /// Saves the map as a pxm to the given path. Any null tiles will be ignored.
+            /// </summary>
+            /// <param name="path">Path to save map to.</param>
             public void Save(string path)
             {
                 using (BinaryWriter bw = new BinaryWriter(new FileStream(path, FileMode.Create, FileAccess.Write)))
@@ -367,7 +439,7 @@ namespace CMPGenerator
                     bw.Write(Map.header);
                     bw.Write(width);
                     bw.Write(height);
-                    bw.Write(data.Select(x => x.Value).ToArray());
+                    bw.Write(data.Where(x => x.HasValue).Select(x => x.Value).ToArray());
 
                     /*
                     for (int i = 0; i < mapToSave.data.Count; i++)
@@ -504,47 +576,38 @@ namespace CMPGenerator
             }
             
             public event Action TilesetLoaded = new Action(delegate { });
-            public bool Load(string image, int tileSize = 16)
+            public bool Load(string imagePath, int newTileSize = 16)
             {
-                return Load(new Bitmap(image), tileSize);
+                return Load(new Bitmap(imagePath), newTileSize);
             }
-            public bool Load(Bitmap image, int tileSize = 16)
+            public bool Load(Bitmap newImage, int newTileSize = 16)
             {
-                int size = tileSize * 16;
+                int newMaxSize = newTileSize * 16;
                 
                 //HACK can probably still be refactored...
                 string error = "";
-                if (image.Height > size && image.Width > size)
-                    error = $"big! {image.Width} > {size}, and {image.Height} > {size}.";
-                else if (image.Width > size)
-                    error = $"wide! {image.Width} > {size}.";
-                else if (image.Height > size)
-                    error = $"tall! {image.Height} > {size}.";
+                if (newImage.Height > newMaxSize && newImage.Width > newMaxSize)
+                    error = $"big! {newImage.Width} > {newMaxSize}, and {newImage.Height} > {newMaxSize}.";
+                else if (newImage.Width > newMaxSize)
+                    error = $"wide! {newImage.Width} > {newMaxSize}.";
+                else if (newImage.Height > newMaxSize)
+                    error = $"tall! {newImage.Height} > {newMaxSize}.";
 
                 //HACK don't use windows.forms
-                if (error.Length > 0 && MessageBox.Show($"The provided bitmap is too {error}\nWould you like to load the top left {size}x{size} pixels anyways?", "Load Tileset", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                if (error.Length > 0 && MessageBox.Show($"The provided bitmap is too {error}\nWould you like to load the top left {newMaxSize}x{newMaxSize} pixels anyways?", "Load Tileset", MessageBoxButtons.YesNo) != DialogResult.Yes)
                     return false;
 
-                if (tileSize != this.tileSize)
+                if (newTileSize != this.tileSize)
                 {
-                    image = new Bitmap(size, size);
-                    using (Graphics g = Graphics.FromImage(image))
-                        g.FillRectangle(Brushes.Black, new Rectangle(0, 0, size, size));
+                    this.image = new Bitmap(newMaxSize, newMaxSize);
+                    using (Graphics g = Graphics.FromImage(this.image))
+                        g.FillRectangle(Brushes.Black, new Rectangle(0, 0, newMaxSize, newMaxSize));
                 }
-                this.tileSize = tileSize;
+                this.tileSize = newTileSize;
 
                 using (Graphics g = Graphics.FromImage(this.image))
                 {
-                    g.DrawImage(
-                        image.Clone(
-                            new Rectangle(
-                                0, 
-                                0, 
-                                Math.Min(image.Width,size), 
-                                Math.Min(image.Height, size)), 
-                            System.Drawing.Imaging.PixelFormat.Format4bppIndexed),
-                        0,
-                        0);
+                    g.DrawImage(newImage, 0, 0, newImage.Width, newImage.Height);
                 }
 
                 TilesetLoaded();
@@ -584,7 +647,7 @@ namespace CMPGenerator
         //TODO maybe remove this, and make it a property of maps
         private void UpdateSMPSaftey()
         {
-            //TODO attempt to use conditional operator... without setting TSCModeLocked first...
+            //TODO would really like to replace this with a conditional operator, but I don't think it's actually possible, since TSCMode HAS to be set first, otherwise things break.
             if (!IsMapSMPSafe(map1) || !IsMapSMPSafe(map2) || map1.height < map2.height || map1.width < map2.width)
             {
                 TSCMode = TSCType.CMP;
@@ -596,26 +659,24 @@ namespace CMPGenerator
             }
         }
 
+        /// <summary>
+        /// Generates (from scratch) the TSC that turns map1 into map2
+        /// </summary>
         public void GenerateTSC()
         {
-            if (map1.Loaded && map2.Loaded)
-            {
-                string OOBFlags = "";
-                if (map1.yRange != map2.yRange || map1.xRange != map2.xRange)
-                {
-                    OOBFlags += ShortToOOBTSC(map1.xRange, map2.xRange, true) + ShortToOOBTSC(map1.yRange, map2.yRange, false);
-                }
+            if (!map1.Loaded || !map2.Loaded)
+                return;
 
-                TSC.Clear();
-                for (int i = 0; i < map2.yRange; i++)
-                {
-                    for (int _i = 0; _i < map2.xRange; _i++)
-                    {
-                        UpdateTSC(_i, i);
-                    }
-                }
-                TSCUpdated(this, new TSCUpdatedEventArgs(((OOBFlags.Length > 0) ? OOBFlags + "\n" : "") + GenerateTSCString()));
-            }
+            string OOBFlags = "";
+            if (map1.yRange != map2.yRange || map1.xRange != map2.xRange)
+                OOBFlags += ShortToOOBTSC(map1.xRange, map2.xRange, true) + ShortToOOBTSC(map1.yRange, map2.yRange, false);
+
+            TSC.Clear();
+            for (int i = 0; i < map2.yRange; i++)
+                for (int _i = 0; _i < map2.xRange; _i++)
+                    UpdateTSC(_i, i);
+
+            TSCUpdated(this, new TSCUpdatedEventArgs(((OOBFlags.Length > 0) ? OOBFlags + "\n" : "") + GenerateTSCString()));
         }
 
         public class TSCUpdatedEventArgs : EventArgs

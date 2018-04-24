@@ -24,7 +24,8 @@ namespace CMPGenerator
             Map2 = new FormMap(false);
 
             TSCComparer = new MapComparer(Map1.map, Map2.map);
-            TSCComparer.TSCModeUpdated += updateTSCModeSwitches;
+            TSCComparer.TSCModeChanged += updateTSCModeSwitches;
+            TSCComparer.TSCModeLockChanged += lockTSCModeSwitches;
             TSCComparer.TSCUpdated += (o, e) =>
             {
                 richTextBox1.Text = e.TSC;
@@ -40,7 +41,7 @@ namespace CMPGenerator
 
             viewMap1.CheckedChanged += delegate { Map1.Visible = viewMap1.Checked; };
             viewMap2.CheckedChanged += delegate { Map2.Visible = viewMap2.Checked; };
-        }
+        }        
 
         private void FilesLoaded(object sender, EventArgs e)
         {
@@ -123,14 +124,16 @@ namespace CMPGenerator
             TSCComparer.TSCMode = MapComparer.TSCType.SMP;
         }
 
-        private void updateTSCModeSwitches(object sender, EventArgs e)
+        private void updateTSCModeSwitches()
         {
             //UNSURE simplified... not sure if it's worth it though...
             sMPToolStripMenuItem.Checked = !(cMPToolStripMenuItem.Checked = (TSCComparer.TSCMode == MapComparer.TSCType.CMP));
             //sMPToolStripMenuItem.Checked = TSCComparer.TSCMode == MapComparer.TSCType.SMP;
-            
-            if(TSCComparer.TSCModeLocked)
-                cMPToolStripMenuItem.Enabled = sMPToolStripMenuItem.Enabled = false;
+        }
+
+        private void lockTSCModeSwitches()
+        {
+            cMPToolStripMenuItem.Enabled = sMPToolStripMenuItem.Enabled = !TSCComparer.TSCModeLocked;
         }
 
         #endregion

@@ -118,93 +118,85 @@ namespace CMPGenerator
         private Bitmap DrawRange(Bitmap input)
         {
             Bitmap b = new Bitmap(input);
-            using (Graphics g = Graphics.FromImage(b))
+            if (map.xRange > 0 && map.yRange > 0)
             {
-                g.DrawRectangle(new Pen(Color.Red),
-                    map.xOffset * map.tileset.tileSize,
-                    map.yOffset * map.tileset.tileSize,
-                    (map.xRange * map.tileset.tileSize) - 1,
-                    (map.yRange * map.tileset.tileSize) - 1
-                    );
+                using (Graphics g = Graphics.FromImage(b))
+                {
+                    g.DrawRectangle(new Pen(Color.Red),
+                        map.xOffset * map.tileset.tileSize,
+                        map.yOffset * map.tileset.tileSize,
+                        (map.xRange * map.tileset.tileSize) - 1,
+                        (map.yRange * map.tileset.tileSize) - 1
+                        );
+                }
             }
             return b;
         }
         
         private void DrawMap()
         {
-            if (map.Loaded)
-            {
-                if (mapImage == null)
-                {
-                    InitializeMap();
-                }
-                else
-                {
-                    if (pictureBox1.Image != null)
-                        pictureBox1.Image.Dispose(); //TODO might have to redo stuff down here for that memory leak issue...
-                    pictureBox1.Image = new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel));
+            if (!map.Loaded)
+                return;
 
-                    GC.Collect(); //HACK still doesn't solve the core issue...
-                    GC.WaitForPendingFinalizers();
+            if (pictureBox1.Image != null)
+                pictureBox1.Image.Dispose();
 
-                    pictureBox1.Invalidate();
-                }
-            }
+            pictureBox1.Image = (mapImage != null)
+                ? new Bitmap(DrawRange(mapImage), (int)(mapImage.Width * zoomLevel), (int)(mapImage.Height * zoomLevel))
+                : mapImage;
+
+            //TODO might have to redo stuff down here for that memory leak issue...
+
+            GC.Collect(); //HACK still doesn't solve the core issue...
+            GC.WaitForPendingFinalizers();
+
+            pictureBox1.Invalidate();
         }
 
         private void InitializeMap()
         {
-            mapImage = new Bitmap(map.width * map.tileset.tileSize, map.height * map.tileset.tileSize);
-            
-            for (int i = 0; i < map.height; i++)
-            {
-                for (int _i = 0; _i < map.width; _i++)
-                {
-                    DrawTile(_i, i);
-                }
-            }
+            if(map.width > 0 && map.height > 0)
+                mapImage = new Bitmap(map.width * map.tileset.tileSize, map.height * map.tileset.tileSize);
+            else
+                mapImage = null;
 
+            for (int i = 0; i < map.height; i++)
+                for (int _i = 0; _i < map.width; _i++)
+                    DrawTile(_i, i);
+            
             DrawMap();      
         }
 
         private void DrawTile(int mapTileXCoord, int mapTileYCoord)
         {
-            if (map.Loaded)
+            if (!map.Loaded || mapImage == null)
+                return; //Can't draw a tile if no map is loaded/map size is <0
+
+            Bitmap tileToDraw = new Bitmap(map.tileset.tileSize, map.tileset.tileSize);
+            using (Graphics g = Graphics.FromImage(tileToDraw)) //Set the tile to a "null tile"
+                g.FillRectangle(new SolidBrush(pictureBox1.BackColor), 0, 0, tileToDraw.Width, tileToDraw.Height);
+
+            byte? tile = map.data[(mapTileYCoord * map.width) + mapTileXCoord];
+            if (tile != null) //Override the null tile with the actual tile, assuming the tile isn't null
             {
-                if (mapImage == null)
-                {
-                    InitializeMap();
-                }
-                else
-                {
-                    Bitmap tileToDraw = new Bitmap(map.tileset.tileSize, map.tileset.tileSize);
-                    using (Graphics g = Graphics.FromImage(tileToDraw))
-                        g.FillRectangle(new SolidBrush(pictureBox1.BackColor), 0, 0, tileToDraw.Width, tileToDraw.Height);
+                int tilesetTileYOffset = tile.Value / (map.tileset.image.Width / map.tileset.tileSize);
+                int tilesetTileXOffset = tile.Value - ((map.tileset.image.Width / map.tileset.tileSize) * tilesetTileYOffset);
 
-                    byte? tile = map.data[(mapTileYCoord * map.width) + mapTileXCoord];
-                    if (tile != null)
-                    {
-                        int tilesetTileYOffset = tile.Value / (map.tileset.image.Width / map.tileset.tileSize);
-                        int tilesetTileXOffset = tile.Value - ((map.tileset.image.Width / map.tileset.tileSize) * tilesetTileYOffset);
-
-                        tileToDraw = map.tileset.image.Clone(
-                                new Rectangle(
-                                    tilesetTileXOffset * map.tileset.tileSize,
-                                    tilesetTileYOffset * map.tileset.tileSize,
-                                    map.tileset.tileSize,
-                                    map.tileset.tileSize),
-                                PixelFormat.DontCare //TODO setting this to 4bpp is causing issues for some reason...
-                                );
-                    }
-
-                    using (Graphics g = Graphics.FromImage(mapImage))
-                    {
-                        g.DrawImage(tileToDraw,
-                            mapTileXCoord * map.tileset.tileSize,
-                            mapTileYCoord * map.tileset.tileSize
-                            );
-                    }
-                }
+                tileToDraw = map.tileset.image.Clone(
+                        new Rectangle(
+                            tilesetTileXOffset * map.tileset.tileSize,
+                            tilesetTileYOffset * map.tileset.tileSize,
+                            map.tileset.tileSize,
+                            map.tileset.tileSize),
+                        PixelFormat.DontCare //TODO setting this to 4bpp is causing issues for some reason...
+                        );
+            }
+            using (Graphics g = Graphics.FromImage(mapImage))
+            {
+                g.DrawImage(tileToDraw,
+                    mapTileXCoord * map.tileset.tileSize,
+                    mapTileYCoord * map.tileset.tileSize
+                    );
             }
         }
 
