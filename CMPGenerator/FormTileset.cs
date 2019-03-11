@@ -7,14 +7,15 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static CMPGenerator.MapComparer;
 
 namespace CMPGenerator
 {
     public partial class FormTileset : Form
     {
-        private MapComparer.Tileset tileset { get; set; }
+        private Tileset tileset { get; set; }
 
-        public FormTileset(MapComparer.Tileset tileset)
+        public FormTileset(Tileset tileset)
         {
             this.tileset = tileset;
             tileset.TilesetLoaded += TilesetLoaded;

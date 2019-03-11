@@ -90,7 +90,7 @@ namespace CMPGenerator
         /// <summary>
         /// What command to use when generating TSC.
         /// </summary>
-        public TSCType TSCMode
+        public TSCType SelectedTSCType
         {
             get
             {
@@ -343,7 +343,7 @@ namespace CMPGenerator
             /// <param name="tsc">TSC to parse.</param>
             public void ApplyTSC(string tsc)
             {
-                if (tsc == null || tsc.Length == 0)
+                if (string.IsNullOrWhiteSpace(tsc))
                     return;
 
                 /*
@@ -576,26 +576,39 @@ namespace CMPGenerator
             }
             
             public event Action TilesetLoaded = new Action(delegate { });
-            public bool Load(string imagePath, int newTileSize = 16)
+            public bool Load(string imagePath, int newTileSize = 0)
             {
                 return Load(new Bitmap(imagePath), newTileSize);
             }
-            public bool Load(Bitmap newImage, int newTileSize = 16)
+            public bool Load(Bitmap newImage, int newTileSize = 0)
             {
-                int newMaxSize = newTileSize * 16;
-                
-                //HACK can probably still be refactored...
-                string error = "";
-                if (newImage.Height > newMaxSize && newImage.Width > newMaxSize)
-                    error = $"big! {newImage.Width} > {newMaxSize}, and {newImage.Height} > {newMaxSize}.";
-                else if (newImage.Width > newMaxSize)
-                    error = $"wide! {newImage.Width} > {newMaxSize}.";
-                else if (newImage.Height > newMaxSize)
-                    error = $"tall! {newImage.Height} > {newMaxSize}.";
+                int newMaxSize;
+                //Use passed tile size
+                if(newTileSize != 0)
+                {
+                    newMaxSize = newTileSize * 16;
 
-                //HACK don't use windows.forms
-                if (error.Length > 0 && MessageBox.Show($"The provided bitmap is too {error}\nWould you like to load the top left {newMaxSize}x{newMaxSize} pixels anyways?", "Load Tileset", MessageBoxButtons.YesNo) != DialogResult.Yes)
-                    return false;
+                    //HACK can probably still be refactored...
+                    string error = "";
+                    if (newImage.Height > newMaxSize && newImage.Width > newMaxSize)
+                        error = $"big! {newImage.Width} > {newMaxSize}, and {newImage.Height} > {newMaxSize}.";
+                    else if (newImage.Width > newMaxSize)
+                        error = $"wide! {newImage.Width} > {newMaxSize}.";
+                    else if (newImage.Height > newMaxSize)
+                        error = $"tall! {newImage.Height} > {newMaxSize}.";
+
+                    //HACK don't use windows.forms
+                    if (error.Length > 0 && MessageBox.Show($"The provided bitmap is too {error}\nWould you like to load the top left {newMaxSize}x{newMaxSize} pixels anyways?", "Load Tileset", MessageBoxButtons.YesNo) != DialogResult.Yes)
+                        return false;
+                }
+                //auto detect (silently)
+                else
+                {
+                    //Get biggest tiles
+                    newTileSize = newImage.Width / 16;
+                    //16 tiles in a row
+                    newMaxSize = newTileSize * 16;
+                }
 
                 if (newTileSize != this.tileSize)
                 {
@@ -650,7 +663,7 @@ namespace CMPGenerator
             //TODO would really like to replace this with a conditional operator, but I don't think it's actually possible, since TSCMode HAS to be set first, otherwise things break.
             if (!IsMapSMPSafe(map1) || !IsMapSMPSafe(map2) || map1.height < map2.height || map1.width < map2.width)
             {
-                TSCMode = TSCType.CMP;
+                SelectedTSCType = TSCType.CMP;
                 TSCModeLocked = true;
             }
             else
@@ -658,6 +671,8 @@ namespace CMPGenerator
                 TSCModeLocked = false;
             }
         }
+
+
 
         /// <summary>
         /// Generates (from scratch) the TSC that turns map1 into map2
@@ -703,7 +718,7 @@ namespace CMPGenerator
             else
                 return;
                         
-            if (e.Action == NotifyCollectionChangedAction.Replace && ((sender as ObservableCollectionEx<byte?>) == map2.data || TSCMode == TSCType.SMP))
+            if (e.Action == NotifyCollectionChangedAction.Replace && ((sender as ObservableCollectionEx<byte?>) == map2.data || SelectedTSCType == TSCType.SMP))
             {
                 int y = e.OldStartingIndex / widthToUse;
                 UpdateTSC(e.OldStartingIndex - (y*widthToUse), y);
@@ -731,7 +746,7 @@ namespace CMPGenerator
                 if (!TSC.ContainsKey(tiley))
                     TSC.Add(tiley, new Dictionary<int, string>());
 
-                switch (TSCMode)
+                switch (SelectedTSCType)
                 {
                     //<CMPxxxx:yyyy:tttt
                     case (TSCType.CMP):
@@ -756,16 +771,43 @@ namespace CMPGenerator
             }
         }
 
+        public enum GenerationDirection
+        {
+            Rows,
+            Columns
+        }
+        public GenerationDirection SelectedTSCGenerationMode { get; set; } = GenerationDirection.Rows;
+
         private string GenerateTSCString()
         {
             string formattedTSC = "";
-            int[] rows = TSC.Keys.Distinct().ToArray();
-            for (int i = 0; i < rows.Length; i++)
+            int[] rows = TSC.Keys.ToArray();
+            Array.Sort(rows);
+            switch (SelectedTSCGenerationMode)
             {
-                formattedTSC += string.Join(null, TSC[rows[i]].Values);
-                if (i + 1 != rows.Length)
-                    formattedTSC += '\n';
+                case GenerationDirection.Rows:                    
+                    for (int i = 0; i < rows.Length; i++)
+                    {
+                        formattedTSC += string.Join(null, TSC[rows[i]].Values.OrderBy(x => x));
+                        if (i + 1 != rows.Length)
+                            formattedTSC += '\n';
+                    }
+                    break;
+                case GenerationDirection.Columns:
+                    int[] columns = TSC.Values.SelectMany(x => x.Keys).Distinct().ToArray();
+                    Array.Sort(columns);
+                    for (int i = 0; i < columns.Length; i++)
+                    {
+                        for (int j = 0; j < rows.Length; j++)
+                        {
+                            if (TSC[rows[j]].TryGetValue(columns[i], out string value))
+                                formattedTSC += value;
+                        }
+                        formattedTSC += '\n';
+                    }
+                    break;
             }
+
             return formattedTSC;
         }
     }

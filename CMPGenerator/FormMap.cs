@@ -10,6 +10,7 @@ using System.Windows.Forms;
 using System.IO;
 using System.Drawing.Imaging;
 using System.Collections.Specialized;
+using static CMPGenerator.MapComparer;
 
 namespace CMPGenerator
 {
@@ -24,7 +25,7 @@ namespace CMPGenerator
         private bool editRangeShown { get; set; } = false;
 
         private bool mapLoaded { get; set; }
-        public MapComparer.Map map { get; }
+        public Map map { get; }
         private Bitmap mapImage { get; set; } = null;
         private float _zoomLevel = 1;
         private float zoomLevel
@@ -45,15 +46,15 @@ namespace CMPGenerator
         }
         public bool master { get; }
 
-        public FormMap(bool master) : this(master, new MapComparer.Map()) { }
-        public FormMap(bool master, MapComparer.Map map)
+        public FormMap(bool master) : this(master, new Map()) { }
+        public FormMap(bool master, Map map)
         {
             this.master = master;
 
             this.map = map;
             map.MapLoaded += MapLoaded;
             (map.data as INotifyCollectionChanged).CollectionChanged += Data_CollectionChanged;
-            map.tileset.TilesetLoaded += DrawMap;
+            map.tileset.TilesetLoaded += () => { InitializeMap(); DrawMap(); };
             map.RangeUpdated += DrawMap;
             map.MapResized += InitializeMap;
             
@@ -69,7 +70,7 @@ namespace CMPGenerator
             pictureBox1.MouseWheel += PictureBox1_MouseWheel;
         }
 
-        public void MapLoaded(object sender, MapComparer.Map.MapLoadedEventArgs e)
+        public void MapLoaded(object sender, Map.MapLoadedEventArgs e)
         {
             this.Text = $"Map {(master ? "1" : "2")}: {Path.GetFileName(e.path)}";
             saveAsToolStripMenuItem.Enabled = true;

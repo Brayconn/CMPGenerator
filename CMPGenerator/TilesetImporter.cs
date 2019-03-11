@@ -18,7 +18,7 @@ namespace CMPGenerator
             InitializeComponent();
         }
 
-        public int tileSize = 16;
+        public int tileSize = 0;
 
         private void numericUpDown1_ValueChanged(object sender, EventArgs e)
         {

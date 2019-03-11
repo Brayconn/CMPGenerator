@@ -60,21 +60,21 @@ namespace CMPGenerator
         private void openMap1_Click(object sender, EventArgs e)
         {
             Tuple<string, string> mapAndTilesetPaths = ShowOpenMapUI();
-            if ((mapAndTilesetPaths != null) ? Map1.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2) : false)
-            {
-                viewMap1.Checked = true;
+            if (mapAndTilesetPaths != null && Map1.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2))
+            {                
                 openMap2.Enabled = true;
                 openTileset2.Enabled = true;
-                if (!Map2.map.Loaded)
+                if (Map2.map.Loaded)
+                    return;
+
+                if (MessageBox.Show("Would you like to load this map as map 2 as well?", "Map Loading", MessageBoxButtons.YesNo) == DialogResult.No)
                 {
-                    if (MessageBox.Show("Would you like to load this map as map 2 as well?", "Map Loading", MessageBoxButtons.YesNo) == DialogResult.No)
-                    {
-                        openMap2.PerformClick();
-                    }
-                    else if (Map2.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2)) //UNSURE need to test
-                    {
-                        viewMap2.Checked = true;
-                    }
+                    openMap2.PerformClick();
+                    viewMap1.Checked = true;
+                }
+                else if (Map2.map.Load(mapAndTilesetPaths.Item1, mapAndTilesetPaths.Item2)) //UNSURE need to test
+                {
+                    viewMap2.Checked = true;
                 }
             }
         }
@@ -114,20 +114,21 @@ namespace CMPGenerator
 
         #region TSC Mode Switching Stuff
 
+        #region TSC Type
         private void cMPToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            TSCComparer.TSCMode = MapComparer.TSCType.CMP;
+            TSCComparer.SelectedTSCType = MapComparer.TSCType.CMP;
         }
 
         private void sMPToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            TSCComparer.TSCMode = MapComparer.TSCType.SMP;
+            TSCComparer.SelectedTSCType = MapComparer.TSCType.SMP;
         }
 
         private void updateTSCModeSwitches()
         {
             //UNSURE simplified... not sure if it's worth it though...
-            sMPToolStripMenuItem.Checked = !(cMPToolStripMenuItem.Checked = (TSCComparer.TSCMode == MapComparer.TSCType.CMP));
+            sMPToolStripMenuItem.Checked = !(cMPToolStripMenuItem.Checked = (TSCComparer.SelectedTSCType == MapComparer.TSCType.CMP));
             //sMPToolStripMenuItem.Checked = TSCComparer.TSCMode == MapComparer.TSCType.SMP;
         }
 
@@ -135,6 +136,34 @@ namespace CMPGenerator
         {
             cMPToolStripMenuItem.Enabled = sMPToolStripMenuItem.Enabled = !TSCComparer.TSCModeLocked;
         }
+        #endregion
+                       
+        #region Order
+        private void rowsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if(TSCComparer.SelectedTSCGenerationMode != MapComparer.GenerationDirection.Rows)
+            {
+                TSCComparer.SelectedTSCGenerationMode = MapComparer.GenerationDirection.Rows;
+                updateTSCGenerationModeSwitches();
+                TSCComparer.GenerateTSC();
+            }            
+        }
+
+        private void columnsToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            if (TSCComparer.SelectedTSCGenerationMode != MapComparer.GenerationDirection.Columns)
+            {
+                TSCComparer.SelectedTSCGenerationMode = MapComparer.GenerationDirection.Columns;
+                updateTSCGenerationModeSwitches();
+                TSCComparer.GenerateTSC();
+            }
+        }
+
+        private void updateTSCGenerationModeSwitches()
+        {
+            columnsToolStripMenuItem.Checked = !(rowsToolStripMenuItem.Checked = (TSCComparer.SelectedTSCGenerationMode == MapComparer.GenerationDirection.Rows));
+        }
+        #endregion
 
         #endregion
 
